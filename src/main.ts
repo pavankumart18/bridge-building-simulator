@@ -449,7 +449,7 @@ function renderPlayground() {
   const drv = driving !== null && sim ? sim.vehicles.find((v) => v.id === driving) : null;
   el.innerHTML = `
     <div class="pg-group"><div class="pg-label"><span>Vehicle</span><span>${VEHICLES[pg.kind].name} · ${tonnes(VEHICLES[pg.kind].mass)}</span></div>
-      <div class="veh-grid">${VEHICLE_ORDER.map((k) => `<button class="veh ${k === pg.kind ? 'on' : ''}" data-kind="${k}">${VEHICLES[k].name.replace('HL-93 design truck', 'HL-93').replace('3-axle tipper', 'Tipper').replace('Delivery van', 'Van').replace('City bus', 'Bus').replace('Heavy-haul transporter', 'Heavy haul')}<small>${tonnes(VEHICLES[k].mass)}</small></button>`).join('')}</div>
+      <div class="veh-grid">${VEHICLE_ORDER.map((k) => `<button class="veh ${k === pg.kind ? 'on' : ''}" data-kind="${k}">${VEHICLES[k].name.replace('HL-93 design truck', 'HL-93').replace('3-axle tipper', 'Tipper').replace('Delivery van', 'Van').replace('City bus', 'Bus').replace('Heavy-haul transporter', 'Heavy haul').replace('Double-decker bus', 'Double-decker').replace('Two-car train', 'Train')}<small>${tonnes(VEHICLES[k].mass)}</small></button>`).join('')}</div>
       <div class="row3" style="margin-top:6px"><button class="btn" data-act="spawnL">→ Send</button><button class="btn" data-act="spawnR">Send ←</button><button class="btn primary" data-act="drive">Drive</button></div>
     </div>
     ${drv ? `<div class="pg-group"><div class="pg-label"><span>Driving ${VEHICLES[drv.kind].name}</span><span>←/→ or A/D</span></div>
@@ -639,6 +639,7 @@ function openBrief() {
     <div class="card-head"><div><div class="mono muted">${level.code} · ${level.client}</div><h2>${level.name}</h2></div>
       ${p ? `<div class="mono" style="color:#ffc83d">${'★'.repeat(p.stars)}${'☆'.repeat(3 - p.stars)}</div>` : ''}</div>
     <p class="lead">${level.brief}</p>
+    ${level.landmark ? `<div class="landmark"><small>The real bridge</small><b>${level.landmark.real}</b><ul>${level.landmark.facts.map((f) => `<li>${f}</li>`).join('')}</ul><span class="muted small">${level.landmark.scale} Real vehicles and materials; the structure is scaled down to fit the game.</span></div>` : ''}
     ${level.playground ? '' : `<h3>Design requirements</h3>
     <div class="constraints">
       <div><b>${fmt(level.budget)}</b><span>Budget (≤ ${fmt(level.budget * 0.8)} for ★★★)</span></div>
@@ -850,6 +851,7 @@ function openLevels() {
       ${tags(l) ? `<div class="lv-tags">${tags(l)}</div>` : ''}</button>`;
   };
   const tags = (l: Level) => [
+    l.landmark ? 'Real bridge' : '',
     l.seismic ? 'Earthquake' : '',
     l.materials.length < 4 ? `${l.materials.filter((m) => m !== 'deck').map((m) => MATERIALS[m].name).join(' + ')} only` : '',
     l.noBuild.length ? 'Clearance zone' : '',
@@ -859,6 +861,7 @@ function openLevels() {
     ['Foundation', 'Triangles, depth and buckling — the basics of every bridge.'],
     ['Professional', 'Real constraints: clearances, gradients, piers, cables and design codes.'],
     ['Expert', 'New hazards: earthquakes, heavy haul, timber-only, multi-span viaducts and cable-stays.'],
+    ['Landmarks', 'Famous bridges, scaled to fit: Chenab, Tower Bridge, Hell Gate and Golden Gate.'],
   ];
   $('levelGrid').innerHTML = TIERS.map(([tier, blurb]) => {
     const ls = LEVELS.filter((l) => l.tier === tier);
@@ -1047,7 +1050,7 @@ function startTutorial() {
 function openWelcome() {
   $('modalCard').innerHTML = `<div class="welcome"><div class="big">🌉</div><h2>Welcome to Span</h2>
     <p class="lead" style="margin-top:8px">A bridge engineering simulator. Design with real materials and sections, check your bridge against design-code limits, then load-test it with live traffic.</p>
-    <ul><li>Walkthrough video + written guide — about 3 minutes</li><li>16 engineering projects in three tiers + a free Playground</li><li>Handbook any time with <kbd>?</kbd></li></ul>
+    <ul><li>Walkthrough video + written guide — about 3 minutes</li><li>20 engineering projects in four tiers, including real landmark bridges, plus a free Playground</li><li>Handbook any time with <kbd>?</kbd></li></ul>
     <div class="btns center"><button class="btn" data-w="skip">Skip</button><button class="btn" data-w="tut">Interactive tutorial</button><button class="btn primary" data-w="walk">▶ Watch the walkthrough</button></div></div>`;
   $('modal').classList.remove('hidden');
   $('modalCard').querySelector('[data-w="tut"]')!.addEventListener('click', () => { $('modal').classList.add('hidden'); startTutorial(); });

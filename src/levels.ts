@@ -14,7 +14,12 @@ export interface VehicleSpec {
 export interface Anchor extends Vec {
   /** draw a concrete pylon / tower from the anchor down to this y */
   pylonTo?: number;
+  /** tower finish: plain concrete (default), Golden Gate orange or Tower Bridge stone */
+  pylon?: 'orange' | 'stone';
 }
+
+/** the real bridge a Landmark project is modelled on */
+export interface Landmark { real: string; facts: string[]; scale: string }
 
 /** a scripted earthquake during the load test, and the matching static seismic design case */
 export interface Seismic {
@@ -24,7 +29,7 @@ export interface Seismic {
   at: number; dur: number; amp: number; freq: number;
 }
 
-export type Tier = 'Foundation' | 'Professional' | 'Expert';
+export type Tier = 'Foundation' | 'Professional' | 'Expert' | 'Landmarks';
 
 export interface Zone { x0: number; y0: number; x1: number; y1: number; label: string }
 
@@ -59,6 +64,7 @@ export interface Level {
   playground?: boolean;
   seismic?: Seismic;
   tier: Tier;
+  landmark?: Landmark;
 }
 
 // ---------- terrain helpers ----------
@@ -116,7 +122,7 @@ interface Opts {
   maxY?: number; minY?: number;
   deflection?: number; gradient?: number;
   noBuild?: Zone[]; boats?: boolean; highwayY?: number; trees?: number; houses?: boolean;
-  lossY?: number; playground?: boolean; seismic?: Seismic; tier?: Tier;
+  lossY?: number; playground?: boolean; seismic?: Seismic; tier?: Tier; landmark?: Landmark;
 }
 
 function site(o: Opts): Level {
@@ -146,6 +152,7 @@ function site(o: Opts): Level {
     playground: o.playground,
     seismic: o.seismic,
     tier: o.tier ?? 'Foundation',
+    landmark: o.landmark,
   };
 }
 
@@ -336,6 +343,95 @@ export const LEVELS: Level[] = [
     noBuild: [{ x0: 18.2, y0: -8, x1: 45.8, y1: -0.6, label: 'Shipping channel' }],
     seismic: { ag: 0.2, at: 5, dur: 8, amp: 0.04, freq: 1.4 },
     vehicles: [{ kind: 'hgv', delay: 0 }, { kind: 'bus', delay: 1, dir: -1 }, { kind: 'hgv', delay: 4 }, { kind: 'van', delay: 5, dir: -1 }],
+  }),
+  // ---------------- Landmarks (real bridges, scaled to fit) ----------------
+  site({
+    id: 'lm1', code: 'CH-467', name: 'Chenab Arch', tier: 'Landmarks',
+    client: 'Northern Railway (USBRL project)',
+    brief: 'Carry a railway across a deep Himalayan gorge in the highest seismic zone. It is a single-track line: one train crosses each way, and an earthquake will strike while the first one is on the bridge. The walls of the gorge are solid rock: spring an arch from them, or prove a truss is better.',
+    lesson: 'An arch carries load in compression and pushes its thrust into the rock at each end — ideal across a deep gorge where piers would be impossibly tall. The deck sits on posts (spandrel columns) standing on the arch, and diagonal bracing stops the arch from folding when a heavy train is on one half.',
+    hint: 'Spring an arch from the low wall anchors, rising to just below the deck at mid-span. Stand posts on it every few metres, add diagonals between posts and deck, and keep the arch members stocky — they are long struts.',
+    gap: 60, waterY: -30, minY: -28, maxY: 8, budget: 168500, seed: 211, trees: 10,
+    extraAnchors: [{ x: -1.5, y: -16 }, { x: 61.5, y: -16 }, { x: -1, y: -8 }, { x: 61, y: -8 }],
+    seismic: { ag: 0.36, at: 4, dur: 10, amp: 0.02, freq: 1.4 },
+    vehicles: [{ kind: 'train', delay: 0 }, { kind: 'train', delay: 13, dir: -1 }],
+    landmark: {
+      real: 'Chenab Bridge, Jammu & Kashmir, India — opened 2025',
+      facts: [
+        'The world\'s highest railway bridge: the track is 359 m above the Chenab river, higher than the Eiffel Tower.',
+        'A 467 m steel arch spans the gorge; the whole bridge is 1,315 m long.',
+        'Designed for winds of up to 260 km/h and for India\'s highest seismic zone (Zone V, design acceleration 0.36 g).',
+      ],
+      scale: 'About 1:8 — the 467 m arch becomes a 60 m gap.',
+    },
+  }),
+  site({
+    id: 'lm2', code: 'TB-1894', name: 'Tower Bridge', tier: 'Landmarks',
+    client: 'City of London Bridge House Estates',
+    brief: 'Two stone towers stand on river piers. Ships need the channel between them kept clear, and London\'s double-decker buses must cross. In this version the central span is fixed rather than lifting, so nothing may sit below it.',
+    lesson: 'Tower Bridge mixes two systems: the side spans hang from suspension chains, while the central span is a bascule (a counterweighted lifting leaf). The high-level walkways are not just for people — they tie the towers together against the pull of the chains.',
+    hint: 'Hang the deck from the tower tops with cables, or prop it from the piers and span between them with trusses above the road. The hatched channel under the central span must stay empty.',
+    gap: 56, waterY: -7, maxY: 18, budget: 67000, seed: 223, trees: 6, houses: true, boats: true,
+    extraTerrain: [pillar(18, -1.5, 1.8, 41), pillar(38, -1.5, 1.8, 43)],
+    extraAnchors: [
+      { x: 17, y: -1.5 }, { x: 19, y: -1.5 }, { x: 37, y: -1.5 }, { x: 39, y: -1.5 },
+      { x: 18, y: 14, pylonTo: -1.5, pylon: 'stone' }, { x: 38, y: 14, pylonTo: -1.5, pylon: 'stone' },
+    ],
+    noBuild: [{ x0: 20.2, y0: -7, x1: 35.8, y1: -0.6, label: 'Pool of London channel' }],
+    vehicles: [{ kind: 'dd', delay: 0 }, { kind: 'car', delay: 1, dir: -1 }, { kind: 'dd', delay: 3, dir: -1 }, { kind: 'van', delay: 4 }],
+    landmark: {
+      real: 'Tower Bridge, London, England — opened 1894',
+      facts: [
+        'A combined bascule and suspension bridge, 244 m long, designed by Horace Jones with engineer John Wolfe Barry.',
+        'The 61 m central span is two bascules that lift to let ships into the Pool of London.',
+        'The side spans hang from chains anchored at the shore and pulled tight over the 65 m towers.',
+      ],
+      scale: 'About 1:4 — the 244 m bridge becomes 56 m.',
+    },
+  }),
+  site({
+    id: 'lm3', code: 'HG-1917', name: 'Hell Gate Arch', tier: 'Landmarks',
+    client: 'New York Connecting Railroad',
+    brief: 'Carry a busy railway over the East River in New York. The whole river must stay open to shipping, so nothing can go below the track — the structure has to rise above it. Two heavy trains cross, one in each direction, one after the other.',
+    lesson: 'In a through arch the arch rises above the deck and the deck hangs from it. The deck doubles as a tie: it pulls the two arch feet together, so the arch\'s outward thrust never reaches the banks. Stiffening diagonals between arch and deck stop it buckling under one-sided loads.',
+    hint: 'Build an arched top chord above the track — highest at mid-span — with posts and diagonals down to the deck. Make the arch members stocky: they carry the most compression.',
+    gap: 60, waterY: -8, maxY: 18, budget: 138500, seed: 233, trees: 6, houses: true, boats: true,
+    noBuild: [{ x0: 3, y0: -8, x1: 57, y1: -0.6, label: 'East River navigation' }],
+    vehicles: [{ kind: 'train', delay: 0 }, { kind: 'train', delay: 13, dir: -1 }],
+    landmark: {
+      real: 'Hell Gate Bridge, New York City — opened 1917',
+      facts: [
+        'A 298 m steel through-arch carrying trains over the East River between Queens and Wards Island.',
+        'Designed by Gustav Lindenthal, it was the longest steel arch in the world until 1931.',
+        'Painted "Hell Gate Red", it is New York\'s red bridge — and it inspired the Sydney Harbour Bridge.',
+      ],
+      scale: 'About 1:5 — the 298 m arch becomes 60 m.',
+    },
+  }),
+  site({
+    id: 'lm4', code: 'GG-1937', name: 'Golden Gate', tier: 'Landmarks',
+    client: 'Golden Gate Bridge District',
+    brief: 'The grand finale. Two orange towers rise from piers at the mouth of the bay, and the shipping channel between them must stay clear. Hang an 80 m crossing from cables while trucks, buses and cars cross — on a coast where the San Andreas fault can shake it at any moment.',
+    lesson: 'A suspension bridge drapes a main cable over its towers; vertical hangers carry the deck to it. The cable takes a curved shape that keeps it in pure tension. On its own a hanging deck is floppy, so real bridges add a stiffening truss under the road.',
+    hint: 'Run a main cable from tower top to tower top, sagging to a few metres above the road at mid-span, with a hanger at every deck joint. Support the side spans from the piers and banks, and stiffen the deck where it bounces.',
+    gap: 80, waterY: -9, maxY: 24, budget: 166500, seed: 241, trees: 10, houses: true, boats: true, deflection: 500,
+    extraTerrain: [pillar(14, -1.5, 1.6, 47), pillar(66, -1.5, 1.6, 53)],
+    extraAnchors: [
+      { x: 13, y: -1.5 }, { x: 15, y: -1.5 }, { x: 65, y: -1.5 }, { x: 67, y: -1.5 },
+      { x: 14, y: 20, pylonTo: -1.5, pylon: 'orange' }, { x: 66, y: 20, pylonTo: -1.5, pylon: 'orange' },
+    ],
+    noBuild: [{ x0: 16.5, y0: -9, x1: 63.5, y1: -0.6, label: 'Golden Gate channel' }],
+    seismic: { ag: 0.3, at: 6, dur: 9, amp: 0.04, freq: 1.3 },
+    vehicles: [{ kind: 'car', delay: 0 }, { kind: 'bus', delay: 0.5, dir: -1 }, { kind: 'hgv', delay: 2 }, { kind: 'van', delay: 4, dir: -1 }, { kind: 'car', delay: 5 }],
+    landmark: {
+      real: 'Golden Gate Bridge, San Francisco — opened 1937',
+      facts: [
+        'Its 1,280 m main span was the longest suspension span in the world until 1964.',
+        'The towers rise 227 m above the water, painted "International Orange" to stand out in the fog.',
+        'It sits close to the San Andreas fault and has been seismically retrofitted since the 1989 Loma Prieta earthquake.',
+      ],
+      scale: 'About 1:25 — the 1,280 m main span becomes 52 m between towers.',
+    },
   }),
 ];
 

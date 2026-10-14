@@ -414,9 +414,10 @@ export class Renderer {
       const tall = a.y - a.pylonTo > 6;
       const wTop = tall ? 0.9 : 1.1, wBot = tall ? 1.6 : 1.3;
       const g = ctx.createLinearGradient(a.x - wBot / 2, 0, a.x + wBot / 2, 0);
-      g.addColorStop(0, '#9da3a8');
-      g.addColorStop(0.5, '#d9dde0');
-      g.addColorStop(1, '#858b91');
+      const [c0, c1, c2] = a.pylon === 'orange' ? ['#8f2a1c', '#d8573c', '#7a2416'] : a.pylon === 'stone' ? ['#a89f8a', '#e2d9c3', '#948b77'] : ['#9da3a8', '#d9dde0', '#858b91'];
+      g.addColorStop(0, c0);
+      g.addColorStop(0.5, c1);
+      g.addColorStop(1, c2);
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(a.x - wBot / 2, a.pylonTo);
@@ -429,6 +430,13 @@ export class Renderer {
       for (let y = a.pylonTo + 1.5; y < a.y; y += 1.5) ctx.fillRect(a.x - wBot / 2, y, wBot, 0.05);
       ctx.fillStyle = '#7d8388';
       ctx.fillRect(a.x - wTop / 2 - 0.2, a.y + 0.2, wTop + 0.4, 0.35);
+      if (a.pylon === 'stone') {
+        // gothic turret roof
+        ctx.fillStyle = '#4e5a63';
+        ctx.beginPath(); ctx.moveTo(a.x - wTop / 2 - 0.3, a.y + 0.55); ctx.lineTo(a.x, a.y + 2.4); ctx.lineTo(a.x + wTop / 2 + 0.3, a.y + 0.55); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(40,40,40,0.35)';
+        for (let y = a.pylonTo + 2.5; y < a.y - 1; y += 3) ctx.fillRect(a.x - 0.12, y, 0.24, 0.9);
+      }
       if (tall) {
         ctx.fillStyle = '#e3402f';
         ctx.beginPath(); ctx.arc(a.x, a.y + 0.75, 0.12, 0, Math.PI * 2); ctx.fill();
@@ -1078,6 +1086,40 @@ export class Renderer {
         ctx.fillRect(0, y0 + 1.15, L, 0.14);
         break;
       }
+      case 'dd': {
+        ctx.beginPath(); ctx.roundRect(0, y0 + 0.2, L, H - 0.15, [0.3, 0.3, 0.55, 0.55]); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = glass;
+        for (let i = 0; i < 7; i++) ctx.fillRect(0.5 + i * 1.4, y0 + 1.25, 1.2, 1.0);
+        for (let i = 0; i < 7; i++) ctx.fillRect(0.5 + i * 1.4, y0 + 2.75, 1.2, 1.05);
+        ctx.fillRect(L - 0.3, y0 + 1.2, 0.25, 1.1);
+        ctx.fillStyle = '#f2d16b';
+        ctx.fillRect(0, y0 + 2.42, L, 0.12);
+        break;
+      }
+      case 'train': {
+        // two coaches with a gangway between them
+        const car = (x0: number, x1: number, noseL: boolean, noseR: boolean) => {
+          ctx.fillStyle = body;
+          ctx.beginPath();
+          ctx.moveTo(x0 + (noseL ? 1.4 : 0), y0 + H - 0.1);
+          ctx.lineTo(x1 - (noseR ? 1.4 : 0), y0 + H - 0.1);
+          if (noseR) ctx.quadraticCurveTo(x1, y0 + H - 0.4, x1, y0 + 1.0); else ctx.lineTo(x1, y0 + H - 0.1);
+          ctx.lineTo(x1, y0 + 0.4); ctx.lineTo(x0, y0 + 0.4);
+          if (noseL) ctx.lineTo(x0, y0 + 1.0), ctx.quadraticCurveTo(x0, y0 + H - 0.4, x0 + 1.4, y0 + H - 0.1); else ctx.lineTo(x0, y0 + H - 0.1);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#2f5fb3';
+          ctx.fillRect(x0 + 0.2, y0 + 0.75, x1 - x0 - 0.4, 0.3);
+          ctx.fillStyle = glass;
+          for (let x = x0 + 1.6; x < x1 - 1.9; x += 1.5) ctx.fillRect(x, y0 + 1.75, 1.1, 0.9);
+          ctx.fillStyle = '#2b2f36';
+          ctx.fillRect(x0 + 0.6, y0 + 0.15, x1 - x0 - 1.2, 0.3);
+        };
+        car(0, 11.8, true, false);
+        car(12.2, L, false, true);
+        ctx.fillStyle = '#3a3f47';
+        ctx.fillRect(11.8, y0 + 0.9, 0.4, H - 1.4);
+        break;
+      }
       case 'haul': {
         // low-loader trailer carrying a transformer, pulled by a heavy tractor unit
         const cab = 2.4, deckTop = y0 + 0.75;
@@ -1141,7 +1183,7 @@ export class Renderer {
       ctx.moveTo(mx, my); ctx.lineTo(mx - 0.35, my + 0.5); ctx.lineTo(mx + 0.35, my + 0.5); ctx.closePath(); ctx.fill();
     }
     ctx.restore();
-    for (const w of wheels) this.wheel(w.x, w.y, r, spin, kind === 'hgv' || kind === 'design' || kind === 'bus' || kind === 'haul');
+    for (const w of wheels) this.wheel(w.x, w.y, r, spin, kind === 'hgv' || kind === 'design' || kind === 'bus' || kind === 'haul' || kind === 'dd' || kind === 'train');
   }
 
   private wheel(x: number, y: number, r: number, spin: number, heavy: boolean) {

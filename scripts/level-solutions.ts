@@ -141,24 +141,114 @@ function* stayed(level: Level, towers: { x: number; y: number }[], piers: { x: n
   }
 }
 
+/**
+ * Lattice between a curved chord and the deck, built as columns of joints and stitched into triangles.
+ * deck arch: arch below the road (springing from wall anchors); through arch: arch above the road.
+ */
+function lattice(t: Topo, cols: DNode[][], deckAt: 'top' | 'bottom') {
+  const isDeck = (i: number, j: number, ci: DNode[], cj: DNode[]) =>
+    (deckAt === 'top' ? i === ci.length - 1 && j === cj.length - 1 : i === 0 && j === 0);
+  const link = (a: DNode, b: DNode, k: 'frame' | 'deck') => { if (!(a.anchor && b.anchor)) beam(t, a, b, k); };
+  for (const c of cols) for (let i = 0; i + 1 < c.length; i++) link(c[i], c[i + 1], 'frame');
+  for (let k = 0; k + 1 < cols.length; k++) {
+    const L = cols[k], R = cols[k + 1];
+    const fl = (i: number) => (L.length > 1 ? i / (L.length - 1) : 0), fr = (j: number) => (R.length > 1 ? j / (R.length - 1) : 0);
+    let i = 0, j = 0;
+    link(L[0], R[0], isDeck(0, 0, L, R) ? 'deck' : 'frame');
+    while (i < L.length - 1 || j < R.length - 1) {
+      // advance the side whose new diagonal is shorter (well-shaped triangles, short members)
+      const dA = i < L.length - 1 ? Math.hypot(L[i + 1].x - R[j].x, L[i + 1].y - R[j].y) : Infinity;
+      const dB = j < R.length - 1 ? Math.hypot(L[i].x - R[j + 1].x, L[i].y - R[j + 1].y) : Infinity;
+      if (dA < dB || (dA === dB && fl(i + 1) <= fr(j + 1))) i++; else j++;
+      link(L[i], R[j], isDeck(i, j, L, R) ? 'deck' : 'frame');
+    }
+  }
+}
+
+function* arches(level: Level, mode: 'deck' | 'through', ends: { left: [number, number][]; right: [number, number][] }): Generator<Topo> {
+  const span = level.span;
+  const rises = mode === 'deck' ? [1.5, 3, 4.5] : [span / 8, span / 6, span / 5].map(r2);
+  for (const rise of rises) for (const p of [2.5, 3]) for (const seg of [3, 4]) {
+    const t = newTopo(level, mode === 'deck'
+      ? `Deck arch springing from the gorge walls, crown ${rise ? `${rise} m below` : 'at'} the track, braced spandrels (${p} m panels)`
+      : `Through arch ${rise} m high over the track, deck as the tie, braced hangers (${p} m panels)`);
+    const n = panels(span, p);
+    const [sx0, sy0] = ends.left[0], [sx1] = ends.right[0];
+    const cols: DNode[][] = [ends.left.map(([x, y]) => anchor(t, x, y))];
+    for (let k = 1; k < n; k++) {
+      const x = r2((span * k) / n);
+      let yArch: number;
+      if (mode === 'deck') { const mid = (sx0 + sx1) / 2, u = (x - mid) / ((sx1 - sx0) / 2); yArch = r2(-rise + (sy0 + rise) * u * u); }
+      else { const u = (x - span / 2) / (span / 2); yArch = r2(rise * (1 - u * u)); }
+      const depth = Math.abs(yArch);
+      const m = depth < 0.4 ? 0 : Math.max(1, Math.ceil(depth / seg));
+      const col: DNode[] = [];
+      for (let i = 0; i <= m; i++) {
+        const y = mode === 'deck' ? (m ? r2(yArch * (1 - i / m)) : 0) : (m ? r2((yArch * i) / m) : 0);
+        col.push(t.d.addNode(x, y));
+      }
+      cols.push(col);
+    }
+    cols.push(ends.right.map(([x, y]) => anchor(t, x, y)));
+    lattice(t, cols, mode === 'deck' ? 'top' : 'bottom');
+    yield t;
+  }
+}
+
+/** suspension: main cable between tower tops with hangers; side spans and stiffening trusses above the road */
+function* suspension(level: Level, towers: [number, number][], piers: { x: number; anchors: [number, number][] }[]): Generator<Topo> {
+  for (const low of [3, 5]) for (const p of [2.6, 3]) for (const stiff of [0, 1, 1.5]) for (const side of [1.5, 2]) {
+    const t = newTopo(level, `Suspension: main cable sagging to ${low} m above the road, hangers at every joint${stiff ? `, ${stiff} m stiffening truss` : ''}; side spans as ${side} m trusses on the piers`);
+    const [L, R] = t.d.nodes;
+    const [pl, pr] = piers.map((pi) => {
+      const nd = t.d.addNode(pi.x, 0);
+      for (const [ax, ay] of pi.anchors) beam(t, anchor(t, ax, ay), nd, 'frame');
+      return nd;
+    });
+    triangles(t, deck(t, L, pl, panels(pl.x - L.x, 3)), side, false);
+    triangles(t, deck(t, pr, R, panels(R.x - pr.x, 3)), side, false);
+    const main = deck(t, pl, pr, panels(pr.x - pl.x, p));
+    if (stiff) triangles(t, main, stiff, false);
+    const [tl, tr] = towers.map(([x, y]) => anchor(t, x, y));
+    const mid = (tl.x + tr.x) / 2, half = (tr.x - tl.x) / 2;
+    const cable = [tl];
+    for (const j of main.slice(1, -1)) {
+      const u = (j.x - mid) / half;
+      const c = t.d.addNode(j.x, r2(low + (tl.y - low) * u * u));
+      beam(t, c, j, 'cable');
+      cable.push(c);
+    }
+    cable.push(tr);
+    for (let i = 0; i + 1 < cable.length; i++) beam(t, cable[i], cable[i + 1], 'cable');
+    yield t;
+  }
+}
+
 function families(level: Level): Generator<Topo>[] {
   switch (level.id) {
     case 'l12': return [towerSpans(level, 17, 19, -10), fullTrusses(level)];
     case 'l13': return [pierSpans(level, [{ x: 18, anchors: [[17, -1.5], [19, -1.5]] }, { x: 36, anchors: [[35, -1.5], [37, -1.5]] }], { below: [false, true] })];
     case 'l14': return [stayed(level, [{ x: 22, y: 14 }], [{ x: 22, anchors: [[21, -1.5], [23, -1.5]] }]), pierSpans(level, [{ x: 22, anchors: [[21, -1.5], [23, -1.5]] }])];
     case 'l15': return [stayed(level, [{ x: 16, y: 14 }, { x: 48, y: 14 }], [{ x: 16, anchors: [[15, -1.5], [17, -1.5]] }, { x: 48, anchors: [[47, -1.5], [49, -1.5]] }])];
+    case 'lm1': return [arches(level, 'deck', { left: [[-1.5, -16], [-1, -8], [0, 0]], right: [[61.5, -16], [61, -8], [60, 0]] }), fullTrusses(level)];
+    case 'lm2': return [stayed(level, [{ x: 18, y: 14 }, { x: 38, y: 14 }], [{ x: 18, anchors: [[17, -1.5], [19, -1.5]] }, { x: 38, anchors: [[37, -1.5], [39, -1.5]] }]),
+      pierSpans(level, [{ x: 18, anchors: [[17, -1.5], [19, -1.5]] }, { x: 38, anchors: [[37, -1.5], [39, -1.5]] }])];
+    case 'lm3': return [arches(level, 'through', { left: [[0, 0]], right: [[60, 0]] }), fullTrusses(level)];
+    case 'lm4': return [suspension(level, [[14, 20], [66, 20]], [{ x: 14, anchors: [[13, -1.5], [15, -1.5]] }, { x: 66, anchors: [[65, -1.5], [67, -1.5]] }])];
     default: return [fullTrusses(level)];
   }
 }
 
 // ---------- validity + sizing ----------
-function valid(d: Design) {
-  for (const n of d.nodes) if (!n.anchor && !d.placeable(n)) return false;
+function valid(d: Design, why: string[] = []) {
+  for (const n of d.nodes) if (!n.anchor && !d.placeable(n)) why.push(`joint (${n.x},${n.y}) not placeable`);
   for (const b of d.beams) {
-    if (d.beamLength(b) > MATERIALS[b.mat].maxLength + 1e-6) return false;
-    if (!d.segmentAllowed(d.node(b.a)!, d.node(b.b)!)) return false;
+    const lim = b.mat === 'deck' || b.mat === 'cable' ? MATERIALS[b.mat].maxLength : MATERIALS.steel.maxLength;
+    if (d.beamLength(b) > lim + 1e-6) why.push(`${b.mat} ${d.beamLength(b).toFixed(1)} m too long`);
+    if (!d.segmentAllowed(d.node(b.a)!, d.node(b.b)!)) why.push('crosses no-build zone');
   }
-  return true;
+  if (why.length && process.env.WHY) console.log('   invalid:', why.slice(0, 4).join('; '));
+  return !why.length;
 }
 
 const codeOk = (an: AnalysisResult) => an.stable && an.checks.every((c) => c.ok || c.id === 'slack');
@@ -219,10 +309,31 @@ function size(t: Topo, maxIter = 40): AnalysisResult | null {
   return an;
 }
 
+/** strengthen one member by one ladder step in the mode that broke it (what a player does after a failed test) */
+function bump(t: Topo, beamId: number, tension: boolean) {
+  const b = t.d.beams.find((x) => x.id === beamId);
+  if (!b) return false;
+  const k = t.kind.get(b.id)!, lad = ladder(t.d.level, k), L = t.d.beamLength(b);
+  const cap = (s: Sec) => { const c = capacity(s[0], s[1], L); return tension ? c.Nt : c.Nc; };
+  const now = cap([b.mat, b.sec]);
+  for (const s of lad) if (fits(s, L) && cap(s) > now * 1.05 && MATERIALS[s[0]].sections[s[1]].costPerM >= MATERIALS[b.mat].sections[b.sec].costPerM) { b.mat = s[0]; b.sec = s[1]; return true; }
+  return false;
+}
+
 function loadTest(d: Design) {
   const sim = new Sim(d.level, d.nodes, d.beams);
-  while (sim.outcome === 'running' && sim.time < 95) sim.step();
-  return { ok: sim.outcome === 'success' && sim.maxRatio < 0.97, peak: sim.maxRatio, outcome: sim.outcome };
+  let first = '', firstId = -1, firstF = 0;
+  while (sim.outcome === 'running' && sim.time < 95) {
+    sim.step();
+    for (const e of sim.events) if (e.type === 'break' && !first) {
+      const b = d.beams.find((x) => x.id === e.designId);
+      firstId = e.designId ?? -1; firstF = e.force ?? 0;
+      first = `${e.mat} ${b ? MATERIALS[b.mat].sections[b.sec].name : ''} at (${e.x.toFixed(1)},${e.y.toFixed(1)}) ${((e.force ?? 0) / 1000).toFixed(0)} kN t=${sim.time.toFixed(1)}`;
+    }
+    sim.events.length = 0;
+  }
+  if (first && process.env.WHY) console.log('   first break:', first);
+  return { ok: sim.outcome === 'success' && sim.maxRatio < 0.97, peak: sim.maxRatio, outcome: sim.outcome, firstId, firstF };
 }
 
 // ---------- main ----------
@@ -230,7 +341,8 @@ const file = 'scripts/reference-solutions.json';
 const out: Record<string, { json: string; cost: number; desc: string; util: number; peak: number; budget: number }> =
   existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
 const want = process.argv.slice(2);
-for (const level of LEVELS.filter((l) => l.tier === 'Expert' && (!want.length || want.includes(l.id)))) {
+if (process.env.NOQUAKE) for (const l of LEVELS) if (l.seismic) l.seismic.amp = 0;
+for (const level of LEVELS.filter((l) => (l.tier === 'Expert' || l.tier === 'Landmarks') && (!want.length || want.includes(l.id)))) {
   const t0 = performance.now();
   const found: { t: Topo; an: AnalysisResult; cost: number }[] = [];
   let tried = 0, sized = 0;
@@ -245,11 +357,21 @@ for (const level of LEVELS.filter((l) => l.tier === 'Expert' && (!want.length ||
   }
   found.sort((a, b) => a.cost - b.cost);
   let best: (typeof found)[number] | null = null, peak = 0;
+  const passed: { f: (typeof found)[number]; peak: number }[] = [];
   for (const f of found.slice(0, 6)) {
-    const lt = loadTest(f.t.d);
+    let lt = loadTest(f.t.d);
+    for (let round = 0; round < 16 && !lt.ok && lt.firstId >= 0; round++) {
+      if (!bump(f.t, lt.firstId, lt.firstF > 0)) break;
+      lt = loadTest(f.t.d);
+    }
+    f.cost = f.t.d.cost();
+    f.an = analyse(level, f.t.d.nodes, f.t.d.beams);
     console.log(`   ${level.id} $${f.cost} · ULS ${Math.round(f.an.maxUtil * 100)}% · test ${lt.outcome} peak ${Math.round(lt.peak * 100)}% · ${f.t.desc}`);
-    if (lt.ok) { best = f; peak = lt.peak; break; }
+    if (lt.ok && codeOk(f.an)) passed.push({ f, peak: lt.peak });
+    if (passed.length >= 2) break;
   }
+  passed.sort((a, b) => a.f.cost - b.f.cost);
+  if (passed.length) { best = passed[0].f; peak = passed[0].peak; }
   const s = ((performance.now() - t0) / 1000).toFixed(1);
   if (!best) { console.log(`${level.id} ✗ nothing passed (${sized} sized of ${tried}) · ${s} s`); continue; }
   // 3★ line = reference cost + 15% headroom → budget = that ÷ 0.8, rounded up to $500

@@ -22,7 +22,7 @@ await p.keyboard.press('l');
 await p.waitForSelector('#levels:not(.hidden)');
 console.log('tiers:', await p.$$eval('.tier-head b', (e) => e.map((x) => x.textContent).join(' / ')), '| cards:', await p.$$eval('#levelGrid .level', (e) => e.length));
 await p.screenshot({ path: `${out}/x-grid.jpg`, quality: 60, type: 'jpeg' });
-await p.evaluate(() => document.querySelector('[data-level="l12"]')!.scrollIntoView({ block: 'center' }));
+await p.evaluate(() => document.querySelector('[data-level="lm2"]')!.scrollIntoView({ block: 'center' }));
 await p.screenshot({ path: `${out}/x-grid-expert.jpg`, quality: 60, type: 'jpeg' });
 
 async function runLevel(id: string, shotAt: number[]) {
@@ -35,9 +35,9 @@ async function runLevel(id: string, shotAt: number[]) {
   const checks = await p.$$eval('.check', (e) => e.map((x) => x.textContent!.replace(/\s+/g, ' ').trim().slice(0, 40)));
   await p.click('#playBtn');
   const ts = Date.now();
-  if (id === 'l12') {
+  if (id === 'l12' || id === 'lm1') {
     await p.waitForFunction(() => document.getElementById('toast')!.textContent!.includes('Earthquake'), null, { timeout: 15000 });
-    console.log(`l12: earthquake alert after ${((Date.now() - ts) / 1000).toFixed(1)} s`);
+    console.log(`${id}: earthquake alert after ${((Date.now() - ts) / 1000).toFixed(1)} s`);
   }
   for (const s of shotAt) { await p.waitForTimeout(s * 1000 - (Date.now() - ts)); await p.screenshot({ path: `${out}/x-${id}-t${s}.jpg`, quality: 60, type: 'jpeg' }); }
   await p.waitForSelector('#modal:not(.hidden) .result', { timeout: 120000 });
@@ -47,8 +47,7 @@ async function runLevel(id: string, shotAt: number[]) {
   await p.screenshot({ path: `${out}/x-${id}-result.jpg`, quality: 60, type: 'jpeg' });
   await p.click('[data-act="edit"]');
 }
-await runLevel('l12', [6, 9]);
-await runLevel('l11', [7]);
-await runLevel('l15', [9]);
+const which = process.argv[3]?.split(',') ?? ['l12', 'l11', 'l15'];
+for (const id of which) await runLevel(id, id === 'l12' ? [6, 9] : [8]);
 console.log('errors', errors.length ? errors : 'none', '· total', ((Date.now() - t0) / 1000).toFixed(1), 's');
 await b.close();

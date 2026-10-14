@@ -12,7 +12,7 @@ import { Sim } from '../src/physics';
 
 const T0 = performance.now();
 let bad = 0;
-for (const level of LEVELS.filter((l) => l.tier === 'Expert')) {
+for (const level of LEVELS.filter((l) => l.tier === 'Expert' || l.tier === 'Landmarks')) {
   const t0 = performance.now();
   const ref = (REF as Record<string, { json: string }>)[level.id];
   if (!ref) { console.log(`${level.id} ✗ no reference design`); bad++; continue; }
@@ -37,5 +37,5 @@ for (const level of LEVELS.filter((l) => l.tier === 'Expert')) {
   if (errs.length) bad++;
   console.log(`${level.id.padEnd(4)} ${errs.length ? '✗' : '✓'} ${level.name.padEnd(20)} $${cost} / 3★ $${level.budget * 0.8} · ULS ${Math.round(an.maxUtil * 100)}% · test peak ${Math.round(sim.maxRatio * 100)}% · ${(ms / 1000).toFixed(1)} s${errs.length ? '\n      ' + errs.join('; ') : ''}`);
 }
-console.log(`${bad ? bad + ' FAILED' : 'all Expert projects verified solvable at 3★'} in ${((performance.now() - T0) / 1000).toFixed(1)} s`);
+console.log(`${bad ? bad + ' FAILED' : 'all Expert + Landmark projects verified solvable at 3★'} in ${((performance.now() - T0) / 1000).toFixed(1)} s`);
 process.exit(bad ? 1 : 0);

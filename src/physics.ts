@@ -201,7 +201,10 @@ export class Sim {
         force: 0, ratio: 0, peak: 0, damping: 150, designId: -1,
       });
     };
-    const susp = 0.06 / (V.mass * 9.81);
+    // every wheel hangs from both body points; scale per-link compliance by the link count so the whole
+    // vehicle sags the same on its springs whether it has 2 axles or 8 (otherwise long vehicles act rigid
+    // and dump their weight onto the few highest wheels)
+    const susp = (0.06 * (2 * wheels.length) / 4) / (V.mass * 9.81);
     for (let i = 1; i < wheels.length; i++) link(wheels[i - 1], wheels[i], 1e-9);
     for (const w of wheels) { link(w, b0, susp); link(w, b1, susp); }
     link(b0, b1, 1e-9);
