@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Span — Bridge Engineering Simulator</title>
+    <meta name="description" content="Design truss, arch and suspension bridges with real materials, check them against design codes, then load-test them with live traffic." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e3402f'/%3E%3Cpath d='M4 22h24M6 22l5-9 5 9 5-9 5 9M11 13h10' stroke='white' stroke-width='2.4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="view"></canvas>
+
+      <header class="topbar">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" width="26" height="26"><rect width="32" height="32" rx="8" fill="#e3402f" /><path d="M4 22h24M6 22l5-9 5 9 5-9 5 9M11 13h10" stroke="#fff" stroke-width="2.4" fill="none" stroke-linejoin="round" /></svg>
+          <span>Span<small>Bridge Engineering Simulator</small></span>
+        </div>
+        <button id="levelBtn" class="project" title="Projects (L)">
+          <span class="code" id="levelCode">BR-101</span>
+          <span class="pname" id="levelName">—</span>
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" /></svg>
+        </button>
+        <button class="ghost" id="briefBtn" title="Project brief (B)">Brief</button>
+        <button class="ghost accent" id="walkBtn" title="Walkthrough video and guide (W)">▶ Walkthrough</button>
+        <button class="ghost accent" id="playgroundBtn" title="Open the Playground">Playground</button>
+
+        <div class="budget" title="Total installed cost against the project budget">
+          <div class="budget-row"><span class="muted">Cost</span><b id="cost">$0</b><span class="muted right">budget <span id="budget">$0</span></span></div>
+          <div class="bar"><i id="budgetFill"></i></div>
+        </div>
+
+        <div class="actions">
+          <button class="icon" id="undoBtn" title="Undo (⌘Z)"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 010 11H11" /></svg></button>
+          <button class="icon" id="redoBtn" title="Redo (⇧⌘Z)"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 000 11H13" /></svg></button>
+          <button class="icon" id="clearBtn" title="Clear design"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg></button>
+          <span class="sep"></span>
+          <div class="seg" id="viewSeg" title="Colour members by…">
+            <button data-view="material">Material</button>
+            <button data-view="util">Utilisation</button>
+            <button data-view="force">Forces</button>
+          </div>
+          <button class="icon toggle" id="labelsBtn" title="Value labels (N)"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7" /></svg></button>
+          <button class="icon toggle" id="shapeBtn" title="Deflected shape (D)"><svg viewBox="0 0 24 24"><path d="M3 8h18" stroke-dasharray="2 2" /><path d="M3 8c5 8 13 8 18 0" /></svg></button>
+          <button class="icon toggle" id="gridBtn" title="Snap to grid (G)"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 12h16M12 4v16" /></svg></button>
+          <button class="icon toggle" id="soundBtn" title="Sound"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" /><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11" /></svg></button>
+          <button class="icon" id="helpBtn" title="Handbook (?)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 114 2c-1 .7-1.5 1.2-1.5 2.5M12 17h.01" /></svg></button>
+        </div>
+      </header>
+
+      <aside class="panel left" id="leftPanel">
+        <section>
+          <h4>Tools</h4>
+          <div class="tools" id="tools"></div>
+        </section>
+        <section>
+          <h4 id="sectionTitle">Section</h4>
+          <div class="sections" id="sections"></div>
+          <p class="muted tiny" id="sectionNote"></p>
+        </section>
+        <section class="legend" id="legend"></section>
+      </aside>
+
+      <aside class="panel right" id="rightPanel">
+        <section id="objectivesSec">
+          <h4>Design checks <span class="pill" id="checkPill"></span></h4>
+          <div id="checks" class="checks"></div>
+        </section>
+        <section id="inspectorSec">
+          <h4>Inspector</h4>
+          <div id="inspector" class="inspector"></div>
+        </section>
+        <section id="playgroundSec" class="hidden">
+          <h4>Playground</h4>
+          <div id="playground"></div>
+        </section>
+      </aside>
+
+      <div class="simbar" id="simbar">
+        <button class="sb-btn" id="pauseBtn" title="Pause (P)"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg></button>
+        <button class="sb-btn" id="stepBtn" title="Step one frame (.)"><svg viewBox="0 0 24 24"><path d="M6 5v14l9-7z" /><rect x="16" y="5" width="3" height="14" rx="1" /></svg></button>
+        <button class="sb-btn speed" id="speedBtn" title="Simulation speed (F)">1×</button>
+        <button class="sb-btn" id="followBtn" title="Camera follows traffic (C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg></button>
+        <div class="sb-time" id="simTime">Design mode</div>
+        <button id="playBtn" class="play" title="Run the load test (Space)">
+          <svg viewBox="0 0 24 24" class="i-play"><path d="M7 4.5v15l13-7.5z" /></svg>
+          <svg viewBox="0 0 24 24" class="i-stop"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+          <span id="playLabel">Load test</span>
+        </button>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="tooltip" id="tooltip"></div>
+      <div class="toast" id="toast"></div>
+
+      <div class="overlay hidden" id="modal"><div class="card" id="modalCard"></div></div>
+      <div class="overlay hidden" id="levels"><div class="card wide"><div class="card-head"><h2>Projects</h2><button class="icon" data-close><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div><div class="level-grid" id="levelGrid"></div></div></div>
+      <div class="overlay hidden" id="brief"><div class="card brief" id="briefCard"></div></div>
+      <div class="overlay hidden" id="help"><div class="card wide" id="helpCard"></div></div>
+      <div class="overlay hidden" id="walk"><div class="card walk" id="walkCard"></div></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

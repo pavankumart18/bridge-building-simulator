@@ -1,0 +1,28 @@
+# Span — Bridge Engineering Simulator
+
+Design truss, arch and suspension bridges with real materials and section sizes, check them against design-code limits, then load-test them with live traffic.
+
+## Play
+
+- **Quickest:** download the repo, keep `Play Span.html` and `Span Tutorial.mp4` together, and open `Play Span.html` in a browser.
+- **From source:** `npm install` then `npm run dev` → http://localhost:5199
+
+Click **▶ Walkthrough** (or press `W`) in the game for the video guide with chapters and written steps.
+
+## Features
+
+- **Materials & sections:** glulam GL24h timber, S355 steel hollow sections, spiral-strand cable and three deck types, with published properties. Compression members buckle (Rankine–Gordon / Euler).
+- **Live static analysis:** direct stiffness method with a moving-load envelope (every design vehicle, both directions), tension-only cables and geometric stiffness for cable-supported decks. Checks: stability, deck continuity, strength (1.35G + 1.5Q), deflection (L/n), gradient, budget.
+- **Dynamic load test:** XPBD simulation with multi-axle vehicles and suspension; members break at their characteristic resistance.
+- **9 projects** with client briefs, design traffic, clearance zones and three-star scoring, plus a **Playground** with two-way traffic, manual driving, dropped loads and earthquakes.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Type-check, build a single-file `dist/index.html`, copy to `Play Span.html` |
+| `npm run test:physics` | Static vs dynamic solver validation + level balance check |
+| `npm run test:tutorial` | Verifies the tutorial bridge passes every check |
+| `npm run test:playground` | Playground smoke test (traffic, driving, loads, earthquake) |
+| `npm run video` | Re-records `Span Tutorial.mp4` and its chapters (needs dev server + Google Chrome) |

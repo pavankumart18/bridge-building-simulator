@@ -1,0 +1,86 @@
+[
+  {
+    "n": "1",
+    "title": "Read the project brief",
+    "sub": "Span, design vehicles, deflection limit, budget — and the engineering idea behind the project",
+    "t": 6.75
+  },
+  {
+    "n": "2",
+    "title": "The site: a 10 m creek",
+    "sub": "The red triangles are anchors — fixed foundations. Your bridge connects them.",
+    "t": 16.25
+  },
+  {
+    "n": "3",
+    "title": "Choose Road deck",
+    "sub": "Click it in the Tools panel, or press 1. Vehicles can only drive on the deck.",
+    "t": 21.05
+  },
+  {
+    "n": "4",
+    "title": "Drag to build the deck",
+    "sub": "Drag from the left anchor. Panels are max 3 m long, so build five 2 m panels, joint to joint.",
+    "t": 27.3
+  },
+  {
+    "n": "5",
+    "title": "Choose Timber",
+    "sub": "Press 2 — light, cheap glulam. Pick a section in the left panel.",
+    "t": 43.9
+  },
+  {
+    "n": "6",
+    "title": "Add triangles under the deck",
+    "sub": "Drag from each deck joint down 1.5 m to make V shapes — triangles cannot change shape",
+    "t": 45.9
+  },
+  {
+    "n": "7",
+    "title": "Read the analysis",
+    "sub": "Utilisation: how hard each member works under the factored design load (green → red)",
+    "t": 79.5
+  },
+  {
+    "n": "8",
+    "title": "Inspect a member",
+    "sub": "Press V (Select) and click a member",
+    "t": 88.9
+  },
+  {
+    "n": "9",
+    "title": "Run the load test",
+    "sub": "Press Load test (Space). Real vehicles cross; members break if overloaded.",
+    "t": 101.35
+  },
+  {
+    "n": "10",
+    "title": "Results and stars",
+    "sub": "★ safe crossing · ★ code compliant · ★ efficient (≤ 80% of budget)",
+    "t": 112.35
+  },
+  {
+    "n": "11",
+    "title": "The Playground",
+    "sub": "Free testing: unlimited budget, traffic, driving, loads and earthquakes",
+    "t": 119.5
+  },
+  {
+    "n": "12",
+    "title": "Drive it yourself",
+    "sub": "Click Drive (or click any vehicle) and use ← → to drive",
+    "t": 135.1
+  },
+  {
+    "n": "13",
+    "title": "Drop heavy loads",
+    "sub": "Choose a weight, then click above the deck",
+    "t": 145.3
+  },
+  {
+    "n": "14",
+    "title": "Earthquake",
+    "sub": "Shake the ground and watch how the structure responds",
+    "t": 153.1
+  }
+]

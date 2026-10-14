@@ -1,0 +1,4 @@
+node_modules
+dist
+.video-tmp
+.DS_Store
