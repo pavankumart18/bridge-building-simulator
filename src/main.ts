@@ -11,6 +11,10 @@ import { Tutorial, type Seg, type TutStep } from './tutorial';
 import { GUIDE, VIDEO_SRC } from './walkthrough';
 import { diagnoseTest, improvementTips, checkHint, type TestInfo, type Diagnosis } from './hints';
 import CHAPTERS from './video-chapters.json';
+import EXAMPLES_RAW from './examples.json';
+
+interface Example { json: string; cost: number; desc: string; util: number; defl: number; peak: number }
+const EXAMPLES = EXAMPLES_RAW as Record<string, Example>;
 
 type Tool = 'select' | MaterialId | 'move' | 'delete' | 'drop';
 
@@ -62,6 +66,8 @@ let acc = 0;
 let lastTest: 'none' | 'pass' | 'fail' = 'none';
 let testInfo: TestInfo = { passed: false, firstBreak: null, breaks: 0, lost: false, timedOut: false };
 const fails: Record<string, number> = store.get('fails', {});
+/** serialized example design while it is loaded unmodified (stars are not awarded for it) */
+let exampleActive: string | null = null;
 audio.muted = store.get('muted', false);
 
 const pg = {
@@ -190,6 +196,7 @@ function scheduleAnalysis() {
 }
 
 function designChanged() {
+  if (exampleActive && design.serialize() !== exampleActive) exampleActive = null;
   peaks = null;
   lastTest = 'none';
   selected = new Set([...selected].filter((id) => design.beams.some((b) => b.id === id)));
@@ -593,6 +600,32 @@ function loadLevel(l: Level, showBrief = true) {
   if (showBrief) openBrief();
 }
 
+function loadExample() {
+  const ex = EXAMPLES[level.id];
+  if (!ex) return;
+  stopSim();
+  design.checkpoint();
+  design.load(ex.json);
+  selected = new Set();
+  designChanged();
+  exampleActive = design.serialize();
+  document.querySelectorAll('.overlay').forEach((o) => o.classList.add('hidden'));
+  fitView();
+  view = 'util';
+  syncHud();
+  toast(`3★ example loaded (${fmt(ex.cost)}) — your own design is one ⌘Z away`);
+  audio.place();
+}
+
+function exampleCard() {
+  const ex = EXAMPLES[level.id];
+  if (!ex || level.playground) return '';
+  return `<h3>Stuck? Study a 3★ example</h3>
+    <div class="example"><div class="ex-stars">★★★</div><div><p>${ex.desc}</p>
+      <div class="ex-facts"><span>${fmt(ex.cost)} · ${Math.round((ex.cost / level.budget) * 100)}% of budget</span><span>max utilisation ${Math.round(ex.util * 100)}%</span><span>deflection ${ex.defl.toFixed(0)} mm</span><span>load test peak ${Math.round(ex.peak * 100)}%</span></div>
+      <button class="btn" data-ex="1">Load the 3★ example</button><span class="muted small"> Replaces your design (⌘Z restores it). Examples earn no stars — beat its cost with your own.</span></div></div>`;
+}
+
 function openBrief() {
   const kinds = [...new Set(level.vehicles.map((v) => v.kind))];
   const rows = kinds.map((k) => {
@@ -619,8 +652,10 @@ function openBrief() {
     <h3>Engineering concept</h3>
     <div class="lesson">${level.lesson}</div>
     <p class="muted" style="margin:12px 0 0">Hint: ${level.hint}</p>
+    ${exampleCard()}
     <div class="btns"><button class="btn" data-close>Close</button><button class="btn primary" data-close>Start designing</button></div>`;
   $('briefCard').querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => $('brief').classList.add('hidden')));
+  $('briefCard').querySelector('[data-ex]')?.addEventListener('click', loadExample);
   $('brief').classList.remove('hidden');
 }
 
@@ -718,6 +753,7 @@ function diagHtml(d: Diagnosis, kind: 'fail' | 'improve') {
   pendingFocus = d.focusBeams.length || d.focusNode !== null ? { beams: d.focusBeams, node: d.focusNode } : null;
   return `<div class="diag ${kind}"><div class="diag-head"><span class="diag-ic">${d.icon}</span><div><small>${kind === 'fail' ? 'What went wrong' : 'How to earn more stars'}</small><b>${d.title}</b></div></div>
     <p>${d.why}</p><ul>${d.tips.map((t) => `<li>${t}</li>`).join('')}</ul>
+    ${kind === 'fail' && (fails[level.id] ?? 0) >= 2 && EXAMPLES[level.id] ? `<button class="btn" data-act="example" style="margin-bottom:6px">★ Load the 3★ example to study</button>` : ''}
     ${pendingFocus ? `<button class="btn" data-act="showme">🔍 Show me ${d.focusNode !== null && !d.focusBeams.length ? 'the joint' : d.focusBeams.length > 1 ? 'these members' : 'the member'}</button>` : ''}</div>`;
 }
 
@@ -736,8 +772,9 @@ function showResult() {
   const stars = s3 ? 3 : s2 ? 2 : s1 ? 1 : 0;
   testInfo.passed = passedTest;
   testInfo.timedOut = !passedTest && !testInfo.lost && !testInfo.firstBreak;
+  const usedExample = !!exampleActive;
   if (!s1) fails[level.id] = (fails[level.id] ?? 0) + 1;
-  else fails[level.id] = 0;
+  else if (!usedExample) fails[level.id] = 0;
   store.set('fails', fails);
   let diag = '';
   if (!passedTest || !structural) diag = diagHtml(diagnoseTest(level, design, an, testInfo, fails[level.id] ?? 1), 'fail');
@@ -745,7 +782,8 @@ function showResult() {
     const imp = improvementTips(level, design, an);
     if (imp) diag = diagHtml(imp, 'improve');
   }
-  if (stars) {
+  if (usedExample) diag = `<div class="diag improve"><div class="diag-head"><span class="diag-ic">★</span><div><small>Example design</small><b>This is the built-in 3★ example</b></div></div><p>Examples don't earn stars. Study how it works — switch to Utilisation and Forces view — then build your own version for less than ${fmt(EXAMPLES[level.id]?.cost ?? cost)}.</p></div>` + diag;
+  if (stars && !usedExample) {
     const prev = progress[level.id];
     progress[level.id] = { stars: Math.max(prev?.stars ?? 0, stars), best: Math.min(prev?.best ?? Infinity, cost) };
     store.set('progress', progress);
@@ -784,6 +822,7 @@ $('modal').addEventListener('click', (e) => {
   else if (act === 'replay') { stopSim(); startSim(); }
   else if (act === 'next') { const i = LEVELS.findIndex((l) => l.id === level.id); loadLevel(LEVELS[i + 1]); }
   else if (act === 'watch') $('modal').classList.add('hidden');
+  else if (act === 'example') loadExample();
   else if (act === 'showme' && pendingFocus) { const f = pendingFocus; stopSim(); focusOn(f.beams, f.node); toast('Highlighted in blue — the inspector shows its numbers'); }
 });
 

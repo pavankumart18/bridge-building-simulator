@@ -10,7 +10,8 @@
     "test:physics": "tsx scripts/headless-test.ts",
     "test:tutorial": "tsx scripts/tutorial-check.ts",
     "test:playground": "tsx scripts/playground-smoke.ts",
-    "video": "tsx scripts/record-video.ts && npm run build"
+    "video": "tsx scripts/record-video.ts && npm run build",
+    "test:examples": "tsx scripts/examples-check.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
