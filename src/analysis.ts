@@ -326,6 +326,33 @@ export function analyse(level: Level, nodes: DNode[], beams: DBeam[], designKind
     }
   }
 
+  // seismic (EN 1998 style, elastic, q = 1): plateau spectral acceleration Sa = 2.5·ag on the bridge's own
+  // mass, horizontal E_h and vertical E_v = 0.9·E_h, combined G ± E_h ± 0.3·E_v and G ± 0.3·E_h ± E_v (all
+  // factors 1.0). Enveloped into the strength check and also reported on its own.
+  let seisUtil = 0;
+  const seisT = elems.map(() => 0), seisC = elems.map(() => 0);
+  if (level.seismic && n) {
+    const Sa = 2.5 * level.seismic.ag;
+    const Eh = new Float64Array(n), Ev = new Float64Array(n);
+    const addMass = (id: number, m: number) => { const d = idx.get(id)!; if (d >= 0) { Eh[d] += m * g * Sa; Ev[d + 1] -= m * g * Sa * 0.9; } };
+    for (const e of elems) { addMass(e.a, e.mass / 2); addMass(e.b, e.mass / 2); }
+    for (const nd of nodeList) addMass(nd.id, JOINT_MASS);
+    const uH = solveChol(Lfac, n, Eh), uV = solveChol(Lfac, n, Ev);
+    cases += 8;
+    elems.forEach((e, i) => {
+      if (!active[i]) return;
+      const nh = axial(e, uH), nv = axial(e, uV);
+      for (const [fh, fv] of [[1, 0.3], [0.3, 1]]) for (const sh of [1, -1]) for (const sv of [1, -1]) {
+        const ned = NG[i] + sh * fh * nh + sv * fv * nv;
+        seisT[i] = Math.max(seisT[i], ned);
+        seisC[i] = Math.max(seisC[i], -ned);
+        if (ned > NEdT[i]) { NEdT[i] = ned; caseOfT[i] = null; }
+        if (-ned > NEdC[i]) { NEdC[i] = -ned; caseOfC[i] = null; }
+        if (e.cable && ned < 0) slack[i] = true;
+      }
+    });
+  }
+
   // member results
   const members = new Map<number, MemberResult>();
   let maxUtil = 0, critical: number | null = null, criticalCase: AnalysisResult['criticalCase'] = null;
@@ -336,6 +363,7 @@ export function analyse(level: Level, nodes: DNode[], beams: DBeam[], designKind
     const uT = NEdT[i] / NtRd;
     const uC = e.cable ? 0 : NEdC[i] / Math.max(1, NcRd);
     const util = Math.max(uT, uC);
+    if (level.seismic) seisUtil = Math.max(seisUtil, seisT[i] / NtRd, e.cable ? 0 : seisC[i] / Math.max(1, NcRd));
     let mode: MemberResult['mode'] = 'none';
     if (e.cable && slack[i] && uT < 0.05) mode = 'slack';
     else if (util > 0) mode = uT >= uC ? 'tension' : cap.buckling ? 'buckling' : 'compression';
@@ -379,6 +407,7 @@ export function analyse(level: Level, nodes: DNode[], beams: DBeam[], designKind
     { id: 'sls', label: `Deflection ≤ L/${level.deflectionLimit}`, ok: maxDefl <= limit, value: maxDefl > 0 ? `L/${Math.round(level.span / maxDefl)} (${(maxDefl * 1000).toFixed(0)} mm)` : '—', detail: maxDefl > level.span / 50 ? `limit ${(limit * 1000).toFixed(0)} mm — very flexible: linear estimate overstates large movements, but the structure needs stiffening` : `limit ${(limit * 1000).toFixed(0)} mm under G + Q` },
     { id: 'grad', label: `Gradient ≤ ${Math.round(level.maxGradient * 100)}%`, ok: gradient <= level.maxGradient + 1e-6, value: isFinite(gradient) ? `${(gradient * 100).toFixed(1)}%` : 'vertical', detail: 'Steepest deck panel' },
   ];
+  if (level.seismic) checks.push({ id: 'seis', label: `Seismic (ag ${level.seismic.ag}g)`, ok: seisUtil <= 1, value: `${Math.round(seisUtil * 100)}% max`, detail: `G ± E: ${(2.5 * level.seismic.ag).toFixed(2)}·g sideways and ${(2.25 * level.seismic.ag).toFixed(2)}·g vertically on the bridge's own mass` });
   const slackLive = elems.filter((_, i) => slack[i] && active[i]).length;
   if (slackLive) checks.push({ id: 'slack', label: 'Cables taut', ok: false, value: `${slackLive} go slack`, detail: 'Some cables lose all tension under live load — the load path changes.' });
 

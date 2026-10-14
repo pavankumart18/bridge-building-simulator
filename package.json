@@ -11,7 +11,8 @@
     "test:tutorial": "tsx scripts/tutorial-check.ts",
     "test:playground": "tsx scripts/playground-smoke.ts",
     "video": "tsx scripts/record-video.ts && npm run build",
-    "test:examples": "tsx scripts/examples-check.ts"
+    "test:examples": "tsx scripts/examples-check.ts",
+    "test:levels": "tsx scripts/levels-check.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

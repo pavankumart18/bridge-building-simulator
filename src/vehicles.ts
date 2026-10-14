@@ -1,4 +1,4 @@
-export type VehicleKind = 'car' | 'pickup' | 'van' | 'bus' | 'hgv' | 'design';
+export type VehicleKind = 'car' | 'pickup' | 'van' | 'bus' | 'hgv' | 'design' | 'haul';
 
 export interface VehicleType {
   id: VehicleKind;
@@ -40,8 +40,13 @@ export const VEHICLES: Record<VehicleKind, VehicleType> = {
     id: 'design', name: 'HL-93 design truck', mass: 33200, length: 11, height: 3.6, wheelR: 0.52,
     axles: [{ x: 1.0, share: 0.445 }, { x: 5.3, share: 0.445 }, { x: 9.6, share: 0.11 }], speed: 5, color: '#7d58c9',
   },
+  haul: {
+    id: 'haul', name: 'Heavy-haul transporter', mass: 72000, length: 16, height: 3.8, wheelR: 0.45,
+    axles: [{ x: 1.0, share: 0.15 }, { x: 2.4, share: 0.15 }, { x: 3.8, share: 0.15 }, { x: 5.2, share: 0.15 }, { x: 11.6, share: 0.15 }, { x: 13.0, share: 0.15 }, { x: 15.0, share: 0.1 }],
+    speed: 3.5, color: '#e8742c',
+  },
 };
 
-export const VEHICLE_ORDER: VehicleKind[] = ['car', 'pickup', 'van', 'bus', 'hgv', 'design'];
+export const VEHICLE_ORDER: VehicleKind[] = ['car', 'pickup', 'van', 'bus', 'hgv', 'design', 'haul'];
 
 export const tonnes = (kg: number) => (kg / 1000).toFixed(kg < 10000 ? 1 : 0) + ' t';

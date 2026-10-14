@@ -251,6 +251,13 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 5px; background: r
 .facts span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 
 .level-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tier-head { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 12px; margin: 10px 2px 0; padding-bottom: 6px; border-bottom: 1px solid var(--line, rgba(255,255,255,0.08)); }
+.tier-head:first-child { margin-top: 0; }
+.tier-head b { font-size: 15px; }
+.tier-head span { color: var(--muted, #9aa3ad); font-size: 13px; }
+.tier-head .mono { margin-left: auto; color: #ffc83d; white-space: nowrap; }
+.lv-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.lv-tags span { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 200, 61, 0.12); color: #ffc83d; }
 .level { text-align: left; padding: 14px; border-radius: 14px; background: var(--raise); border: 1px solid transparent; display: flex; flex-direction: column; gap: 5px; transition: background 0.15s, transform 0.15s; }
 .level:hover { background: rgba(255, 255, 255, 0.09); transform: translateY(-2px); }
 .level.current { border-color: rgba(255, 255, 255, 0.35); }

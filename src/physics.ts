@@ -91,6 +91,7 @@ export class Sim {
   nodeIndex = new Map<number, number>();
   quake: { amp: number; freq: number } | null = null;
   groundX = 0;
+  groundY = 0;
   /** viscous damping on all joints, 1/s (dynamic relaxation uses a large value) */
   globalDamping = 0.25;
   stepMs = 0;
@@ -100,6 +101,8 @@ export class Sim {
   private deckRest = new Map<number, number>(); // particle → rest y for deflection tracking
   private leftEdge: number;
   private rightEdge: number;
+  /** the level's scripted earthquake runs only in a real load test, never during static relaxation */
+  private scripted: boolean;
 
   constructor(public level: Level, nodes: DNode[], beams: DBeam[], spawnLevelTraffic = true) {
     for (const poly of level.terrain) {
@@ -142,6 +145,7 @@ export class Sim {
       }
     }
     this.refreshRoad();
+    this.scripted = spawnLevelTraffic && !!level.seismic;
     if (spawnLevelTraffic) for (const v of level.vehicles) this.queue.push({ kind: v.kind, dir: v.dir ?? 1, at: v.delay, required: true });
   }
 
@@ -244,10 +248,12 @@ export class Sim {
     return s / v.wheels.length;
   }
 
+  /** ground displacement: mostly horizontal, with a smaller, faster vertical component */
   private ground(t: number) {
-    if (!this.quake) return 0;
+    if (!this.quake) { this.groundY = 0; return 0; }
     const { amp, freq } = this.quake;
     const w = 2 * Math.PI * freq;
+    this.groundY = amp * 0.45 * Math.sin(w * 1.31 * t + 0.7);
     return amp * (Math.sin(w * t) * 0.7 + Math.sin(w * 1.73 * t + 1.3) * 0.3);
   }
 
@@ -290,12 +296,20 @@ export class Sim {
       for (const w of v.wheels) P[w].drive = target;
     }
 
+    if (this.scripted) {
+      const q = this.level.seismic!;
+      const t = this.time - q.at;
+      // 1.5 s ramp in and out so the ground never jumps
+      const env = t < 0 || t > q.dur ? 0 : Math.min(1, t / 1.5, (q.dur - t) / 1.5);
+      this.quake = env > 0 ? { amp: q.amp * env, freq: q.freq } : null;
+    }
+
     for (const m of M) m.force = 0;
 
     for (let s = 0; s < SUBSTEPS; s++) {
       this.groundX = this.ground(this.time + s * h);
       for (const p of P) {
-        if (p.anchor) { p.x = p.bx + this.groundX; continue; }
+        if (p.anchor) { p.x = p.bx + this.groundX; p.y = p.by + this.groundY; continue; }
         if (p.w === 0) continue;
         p.vy += GRAVITY * h;
         p.px = p.x; p.py = p.y;
@@ -462,16 +476,16 @@ export class Sim {
   }
 
   private collideTerrain(p: Particle) {
-    const gx = this.groundX;
+    const gx = this.groundX, gy = this.groundY;
     for (const s of this.terrainSegs) {
-      const ax = s.ax + gx, bx = s.bx + gx;
+      const ax = s.ax + gx, bx = s.bx + gx, ay = s.ay + gy, by = s.by + gy;
       if (p.x + p.r < Math.min(ax, bx) || p.x - p.r > Math.max(ax, bx)) continue;
-      if (p.y + p.r < Math.min(s.ay, s.by) || p.y - p.r > Math.max(s.ay, s.by)) continue;
-      const ex = bx - ax, ey = s.by - s.ay;
+      if (p.y + p.r < Math.min(ay, by) || p.y - p.r > Math.max(ay, by)) continue;
+      const ex = bx - ax, ey = by - ay;
       const l2 = ex * ex + ey * ey;
-      let t = ((p.x - ax) * ex + (p.y - s.ay) * ey) / l2;
+      let t = ((p.x - ax) * ex + (p.y - ay) * ey) / l2;
       t = t < 0 ? 0 : t > 1 ? 1 : t;
-      const qx = ax + ex * t, qy = s.ay + ey * t;
+      const qx = ax + ex * t, qy = ay + ey * t;
       let dx = p.x - qx, dy = p.y - qy;
       const d = Math.hypot(dx, dy);
       if (d >= p.r || d < 1e-9) continue;

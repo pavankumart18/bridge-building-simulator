@@ -449,7 +449,7 @@ function renderPlayground() {
   const drv = driving !== null && sim ? sim.vehicles.find((v) => v.id === driving) : null;
   el.innerHTML = `
     <div class="pg-group"><div class="pg-label"><span>Vehicle</span><span>${VEHICLES[pg.kind].name} · ${tonnes(VEHICLES[pg.kind].mass)}</span></div>
-      <div class="veh-grid">${VEHICLE_ORDER.map((k) => `<button class="veh ${k === pg.kind ? 'on' : ''}" data-kind="${k}">${VEHICLES[k].name.replace('HL-93 design truck', 'HL-93').replace('3-axle tipper', 'Tipper').replace('Delivery van', 'Van').replace('City bus', 'Bus')}<small>${tonnes(VEHICLES[k].mass)}</small></button>`).join('')}</div>
+      <div class="veh-grid">${VEHICLE_ORDER.map((k) => `<button class="veh ${k === pg.kind ? 'on' : ''}" data-kind="${k}">${VEHICLES[k].name.replace('HL-93 design truck', 'HL-93').replace('3-axle tipper', 'Tipper').replace('Delivery van', 'Van').replace('City bus', 'Bus').replace('Heavy-haul transporter', 'Heavy haul')}<small>${tonnes(VEHICLES[k].mass)}</small></button>`).join('')}</div>
       <div class="row3" style="margin-top:6px"><button class="btn" data-act="spawnL">→ Send</button><button class="btn" data-act="spawnR">Send ←</button><button class="btn primary" data-act="drive">Drive</button></div>
     </div>
     ${drv ? `<div class="pg-group"><div class="pg-label"><span>Driving ${VEHICLES[drv.kind].name}</span><span>←/→ or A/D</span></div>
@@ -646,6 +646,8 @@ function openBrief() {
       <div><b>L/${level.deflectionLimit}</b><span>Live-load deflection limit (${(level.span / level.deflectionLimit * 1000).toFixed(0)} mm)</span></div>
       <div><b>${Math.round(level.maxGradient * 100)}%</b><span>Maximum deck gradient</span></div>
       ${level.noBuild.map((z) => `<div><b>${z.label}</b><span>No members or joints in the hatched zone</span></div>`).join('')}
+      ${level.materials.length < 4 ? `<div><b>${level.materials.filter((m) => m !== 'deck').map((m) => MATERIALS[m].name).join(' + ')} only</b><span>Materials allowed besides the road deck</span></div>` : ''}
+      ${level.seismic ? `<div><b>ag = ${level.seismic.ag} g</b><span>Seismic zone: an earthquake strikes during the load test, and the code adds a seismic load case</span></div>` : ''}
       <div><b>${GAMMA_G} G + ${GAMMA_Q} Q</b><span>Strength load combination</span></div>
     </div>
     <h3>Design traffic</h3>
@@ -669,6 +671,7 @@ function startSim() {
   console.info(`[span] sim built: ${sim.particles.length} particles, ${sim.members.length} members in ${(performance.now() - t0).toFixed(2)} ms`);
   simWall = performance.now();
   testInfo = { passed: false, firstBreak: null, breaks: 0, lost: false, timedOut: false };
+  quakeAnnounced = false;
   acc = 0;
   paused = false;
   resultShown = false;
@@ -703,15 +706,22 @@ function stopSim() {
   renderPlayground();
 }
 
+let quakeAnnounced = false;
 function handleEvents() {
   if (!sim) return;
+  if (!level.playground && level.seismic && sim.quake && !quakeAnnounced) {
+    quakeAnnounced = true;
+    R.shake = Math.max(R.shake, 14);
+    audio.rumble();
+    toast('Earthquake! The ground is shaking under the traffic');
+  }
   for (const e of sim.events) {
     if (e.type === 'break') {
       R.burst(e.x, e.y, e.mat);
       audio.snap(e.mat);
       testInfo.breaks++;
       if (!testInfo.firstBreak && e.designId !== undefined && e.designId >= 0) {
-        testInfo.firstBreak = { designId: e.designId, force: e.force ?? 0, mat: e.mat };
+        testInfo.firstBreak = { designId: e.designId, force: e.force ?? 0, mat: e.mat, t: sim.time };
         if (!level.playground) toast(`${e.mat ? MATERIALS[e.mat].name : 'A'} member ${(e.force ?? 0) < 0 ? 'failed in compression' : 'snapped in tension'} — tips will follow`);
       }
     }
@@ -836,9 +846,26 @@ function openLevels() {
       <div class="lv-top"><span class="lv-code">${l.playground ? 'LAB' : `${String(i + 1).padStart(2, '0')} · ${l.code}`}</span><span class="mini-stars">${l.playground ? '' : stars}</span></div>
       <div class="lv-name">${l.name}</div>
       <div class="lv-meta">${l.playground ? 'Unlimited budget · free testing' : `${l.span} m span · ${fmt(l.budget)}${p ? ` · best ${fmt(p.best)}` : ''}`}</div>
-      <div class="lv-meta">${l.playground ? 'Spawn traffic, drive, drop loads, earthquakes' : kinds}</div></button>`;
+      <div class="lv-meta">${l.playground ? 'Spawn traffic, drive, drop loads, earthquakes' : kinds}</div>
+      ${tags(l) ? `<div class="lv-tags">${tags(l)}</div>` : ''}</button>`;
   };
-  $('levelGrid').innerHTML = LEVELS.map(card).join('') + card(PLAYGROUND, 0);
+  const tags = (l: Level) => [
+    l.seismic ? 'Earthquake' : '',
+    l.materials.length < 4 ? `${l.materials.filter((m) => m !== 'deck').map((m) => MATERIALS[m].name).join(' + ')} only` : '',
+    l.noBuild.length ? 'Clearance zone' : '',
+    l.vehicles.some((v) => VEHICLES[v.kind].mass > 40000) ? 'Abnormal load' : '',
+  ].filter(Boolean).map((t) => `<span>${t}</span>`).join('');
+  const TIERS: [Level['tier'], string][] = [
+    ['Foundation', 'Triangles, depth and buckling — the basics of every bridge.'],
+    ['Professional', 'Real constraints: clearances, gradients, piers, cables and design codes.'],
+    ['Expert', 'New hazards: earthquakes, heavy haul, timber-only, multi-span viaducts and cable-stays.'],
+  ];
+  $('levelGrid').innerHTML = TIERS.map(([tier, blurb]) => {
+    const ls = LEVELS.filter((l) => l.tier === tier);
+    const got = ls.reduce((a, l) => a + (progress[l.id]?.stars ?? 0), 0);
+    return `<div class="tier-head"><b>${tier}</b><span>${blurb}</span><span class="mono">${got}/${ls.length * 3} ★</span></div>` +
+      ls.map((l) => card(l, LEVELS.indexOf(l))).join('');
+  }).join('') + `<div class="tier-head"><b>Lab</b><span>No rules, no budget.</span></div>` + card(PLAYGROUND, 0);
   $('levels').classList.remove('hidden');
 }
 $('levelGrid').addEventListener('click', (e) => {
@@ -1020,7 +1047,7 @@ function startTutorial() {
 function openWelcome() {
   $('modalCard').innerHTML = `<div class="welcome"><div class="big">🌉</div><h2>Welcome to Span</h2>
     <p class="lead" style="margin-top:8px">A bridge engineering simulator. Design with real materials and sections, check your bridge against design-code limits, then load-test it with live traffic.</p>
-    <ul><li>Walkthrough video + written guide — about 3 minutes</li><li>9 engineering projects + a free Playground</li><li>Handbook any time with <kbd>?</kbd></li></ul>
+    <ul><li>Walkthrough video + written guide — about 3 minutes</li><li>16 engineering projects in three tiers + a free Playground</li><li>Handbook any time with <kbd>?</kbd></li></ul>
     <div class="btns center"><button class="btn" data-w="skip">Skip</button><button class="btn" data-w="tut">Interactive tutorial</button><button class="btn primary" data-w="walk">▶ Watch the walkthrough</button></div></div>`;
   $('modal').classList.remove('hidden');
   $('modalCard').querySelector('[data-w="tut"]')!.addEventListener('click', () => { $('modal').classList.add('hidden'); startTutorial(); });

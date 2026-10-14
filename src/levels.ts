@@ -16,6 +16,16 @@ export interface Anchor extends Vec {
   pylonTo?: number;
 }
 
+/** a scripted earthquake during the load test, and the matching static seismic design case */
+export interface Seismic {
+  /** design ground acceleration as a fraction of g (equivalent lateral force) */
+  ag: number;
+  /** test: start time (s), duration (s), peak ground displacement (m), frequency (Hz) */
+  at: number; dur: number; amp: number; freq: number;
+}
+
+export type Tier = 'Foundation' | 'Professional' | 'Expert';
+
 export interface Zone { x0: number; y0: number; x1: number; y1: number; label: string }
 
 export interface Level {
@@ -47,6 +57,8 @@ export interface Level {
   scenery: { trees: number; houses: boolean; seed: number };
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   playground?: boolean;
+  seismic?: Seismic;
+  tier: Tier;
 }
 
 // ---------- terrain helpers ----------
@@ -104,7 +116,7 @@ interface Opts {
   maxY?: number; minY?: number;
   deflection?: number; gradient?: number;
   noBuild?: Zone[]; boats?: boolean; highwayY?: number; trees?: number; houses?: boolean;
-  lossY?: number; playground?: boolean;
+  lossY?: number; playground?: boolean; seismic?: Seismic; tier?: Tier;
 }
 
 function site(o: Opts): Level {
@@ -132,6 +144,8 @@ function site(o: Opts): Level {
     scenery: { trees: o.trees ?? 6, houses: o.houses ?? false, seed: o.seed },
     bounds: { minX: -6, maxX: o.gap + 6, minY: o.minY ?? waterY + 0.5, maxY: o.maxY ?? Math.max(leftY, rightY) + 12 },
     playground: o.playground,
+    seismic: o.seismic,
+    tier: o.tier ?? 'Foundation',
   };
 }
 
@@ -181,6 +195,7 @@ export const LEVELS: Level[] = [
     hint: 'Build a Pratt or Warren truss above the deck. The hatched zone is off-limits for joints and members.',
     gap: 24, budget: 28000, seed: 43, trees: 7, boats: true, waterY: -6, maxY: 14,
     noBuild: [{ x0: 2.5, y0: -6, x1: 21.5, y1: -0.6, label: 'Navigation clearance 5.0 m' }],
+    tier: 'Professional',
     vehicles: [{ kind: 'van', delay: 0 }, { kind: 'bus', delay: 2 }, { kind: 'car', delay: 3, dir: -1 }],
   }),
   site({
@@ -191,6 +206,7 @@ export const LEVELS: Level[] = [
     hint: 'Keep the deck straight between the anchors. Stiffen it enough that it does not sag into a steep dip.',
     gap: 18, leftY: 1.2, rightY: 0, waterY: -7, budget: 19500, seed: 47, trees: 8, gradient: 0.08,
     extraAnchors: [{ x: -0.7, y: -2.5 }, { x: 18.6, y: -4 }],
+    tier: 'Professional',
     vehicles: [{ kind: 'bus', delay: 0 }, { kind: 'car', delay: 1, dir: -1 }, { kind: 'pickup', delay: 4 }],
   }),
   site({
@@ -202,6 +218,7 @@ export const LEVELS: Level[] = [
     gap: 32, budget: 38000, seed: 59, trees: 6, boats: true,
     extraTerrain: [pillar(16, -1.5, 1.4, 5)],
     extraAnchors: [{ x: 15, y: -1.5 }, { x: 17, y: -1.5 }],
+    tier: 'Professional',
     vehicles: [{ kind: 'bus', delay: 0 }, { kind: 'van', delay: 2, dir: -1 }, { kind: 'hgv', delay: 4 }],
   }),
   site({
@@ -215,6 +232,7 @@ export const LEVELS: Level[] = [
       { x: -1.5, y: 14, pylonTo: 0 }, { x: 45.5, y: 14, pylonTo: 0 },
       { x: -11, y: 0 }, { x: 55, y: 0 },
     ],
+    tier: 'Professional',
     vehicles: [{ kind: 'car', delay: 0 }, { kind: 'van', delay: 2, dir: -1 }, { kind: 'bus', delay: 4 }],
   }),
   site({
@@ -225,6 +243,7 @@ export const LEVELS: Level[] = [
     hint: 'Try both: a braced arch from the wall anchors, and a truss over the deck. Compare their cost and utilisation in the checks panel.',
     gap: 30, waterY: -22, budget: 38500, seed: 83, trees: 5, minY: -21,
     extraAnchors: [{ x: -2, y: -12 }, { x: 32, y: -12 }, { x: -1, y: -6 }, { x: 31, y: -6 }],
+    tier: 'Professional',
     vehicles: [{ kind: 'hgv', delay: 0 }, { kind: 'car', delay: 3, dir: -1 }],
   }),
   site({
@@ -240,7 +259,83 @@ export const LEVELS: Level[] = [
       { x0: 2, y0: -8, x1: 14, y1: -2.8, label: 'Headroom 5.2 m' },
       { x0: 16, y0: -8, x1: 28, y1: -2.8, label: 'Headroom 5.2 m' },
     ],
+    tier: 'Professional',
     vehicles: [{ kind: 'design', delay: 0 }, { kind: 'car', delay: 2, dir: -1 }, { kind: 'van', delay: 5 }],
+  }),
+  // ---------------- Expert ----------------
+  site({
+    id: 'l10', code: 'BR-610', name: 'Timber Trail', tier: 'Expert',
+    client: 'Forestry Commission',
+    brief: 'A 22 m crossing on a forest haul road — and the client wants it built from local timber. No steel and no cables: only timber members and a road deck. A bus and service vehicles use it.',
+    lesson: 'Timber is about 18× less stiff than steel, so deflection, not strength, usually governs. Depth is the cheapest stiffness you can buy: doubling the depth roughly halves the chord forces and quarters the sag.',
+    hint: 'Go deep. A truss about span ÷ 6 deep, with stocky sections on the compression chord and short panels so struts do not buckle.',
+    gap: 22, budget: 26500, seed: 113, trees: 16, deflection: 600, materials: ['deck', 'timber'], maxY: 14,
+    extraAnchors: [{ x: -0.7, y: -4 }, { x: 22.7, y: -4 }],
+    vehicles: [{ kind: 'bus', delay: 0 }, { kind: 'van', delay: 1, dir: -1 }, { kind: 'pickup', delay: 4 }],
+  }),
+  site({
+    id: 'l11', code: 'BR-611', name: 'Heavy Haul', tier: 'Expert',
+    client: 'GridLink Energy',
+    brief: 'A 72 t transformer must reach the new substation on a seven-axle heavy-haul transporter. It crawls across a 24 m ravine, followed by an escort car. Everything else about this bridge is ordinary — the load is not.',
+    lesson: 'A heavy load spread over many axles is kinder than the same weight on a few, but the total still has to reach the banks. Moving loads make every member see its worst case somewhere along the crossing — check the envelope, not one position.',
+    hint: 'Steel chords, a deep truss and short panels. The utilisation view shows the worst case over every position of the transporter.',
+    gap: 24, budget: 40000, seed: 127, trees: 6, maxY: 14, waterY: -8,
+    extraAnchors: [{ x: -0.8, y: -4.5 }, { x: 24.8, y: -4.5 }],
+    vehicles: [{ kind: 'haul', delay: 0 }, { kind: 'car', delay: 4 }],
+  }),
+  site({
+    id: 'l12', code: 'BR-712', name: 'Seismic Valley', tier: 'Expert',
+    client: 'Andean Roads Authority',
+    brief: 'A 36 m valley on an active fault, with a rock spur rising 10 m below road level in the middle. During the load test an earthquake will shake the ground while traffic is on the bridge. The code also asks for a sideways seismic force on the bridge\'s own weight.',
+    lesson: 'Earthquakes push sideways. Mass high up on a slender support swings like a pendulum, so tall props must be braced into triangles, and lighter bridges attract smaller seismic forces (F = m·a).',
+    hint: 'Either span the whole valley with a deep truss, or build a braced tower on the spur — two legs tied with diagonals in every panel — and span to it from each bank.',
+    gap: 36, waterY: -18, minY: -17, budget: 44500, seed: 139, trees: 8, maxY: 14,
+    extraTerrain: [pillar(18, -10, 1.6, 13)],
+    extraAnchors: [{ x: 17, y: -10 }, { x: 19, y: -10 }, { x: -1, y: -5 }, { x: 37, y: -5 }],
+    seismic: { ag: 0.35, at: 3, dur: 11, amp: 0.065, freq: 1.5 },
+    vehicles: [{ kind: 'bus', delay: 0 }, { kind: 'van', delay: 1, dir: -1 }, { kind: 'pickup', delay: 3 }],
+  }),
+  site({
+    id: 'l13', code: 'BR-713', name: 'Twin Pier Viaduct', tier: 'Expert',
+    client: 'Northern Freight Corridor',
+    brief: 'A 54 m river crossing with two rock piers. Quarry trucks run in a convoy, nose to tail, with a bus coming the other way. Three spans, continuous loading — and a budget that does not forgive waste.',
+    lesson: 'With several spans, a load on one span lifts the next. Members near the piers see force reversals, so a member that is a tie in one load position can be a strut in another. Design for both.',
+    hint: 'Support the deck on both piers. Check every member in the Utilisation view: anything that switches between tension and compression needs to work as a strut too.',
+    gap: 54, budget: 67500, seed: 149, trees: 8, boats: true, maxY: 14,
+    extraTerrain: [pillar(18, -1.5, 1.4, 17), pillar(36, -1.5, 1.4, 19)],
+    extraAnchors: [{ x: 17, y: -1.5 }, { x: 19, y: -1.5 }, { x: 35, y: -1.5 }, { x: 37, y: -1.5 }],
+    vehicles: [{ kind: 'hgv', delay: 0 }, { kind: 'hgv', delay: 1.5 }, { kind: 'bus', delay: 2, dir: -1 }, { kind: 'car', delay: 5 }],
+  }),
+  site({
+    id: 'l14', code: 'BR-814', name: 'Harbour Cable-Stay', tier: 'Expert',
+    client: 'Port of Kingsmouth',
+    brief: 'A 44 m harbour mouth with ships on both sides of a central pier. The navigation channels below the road must stay clear, so the deck has to be held from above. A 14 m tower stands ready on the pier.',
+    lesson: 'A cable-stayed bridge hangs its deck straight from the tower with straight cables. The stays pull the deck toward the tower, so the deck works as a long strut: near the tower it carries the horizontal pull of every stay at once.',
+    hint: 'Run stays from the tower top to deck joints on both sides, keeping them balanced. Cables can be at most 24 m long, so the far ends may need help from the deck itself.',
+    gap: 44, budget: 57000, seed: 157, trees: 6, boats: true, maxY: 18, waterY: -7, deflection: 500,
+    extraTerrain: [pillar(22, -1.5, 1.4, 23)],
+    extraAnchors: [{ x: 21, y: -1.5 }, { x: 23, y: -1.5 }, { x: 22, y: 14, pylonTo: -1.5 }],
+    noBuild: [
+      { x0: 2.5, y0: -7, x1: 19.8, y1: -0.6, label: 'Shipping channel' },
+      { x0: 24.2, y0: -7, x1: 41.5, y1: -0.6, label: 'Shipping channel' },
+    ],
+    vehicles: [{ kind: 'bus', delay: 0 }, { kind: 'van', delay: 1, dir: -1 }, { kind: 'hgv', delay: 4 }],
+  }),
+  site({
+    id: 'l15', code: 'BR-915', name: 'Estuary Crossing', tier: 'Expert',
+    client: 'Estuary Link Consortium',
+    brief: 'The final commission: a 64 m estuary on a seismic coast. Two 14 m towers stand on piers 32 m apart with a shipping channel between them. Heavy trucks and buses cross while the ground shakes.',
+    lesson: 'Long-span bridges combine everything: cables for reach, trusses for stiffness, towers for height — and every kilogram you add also adds seismic force.',
+    hint: 'Stay the main span from both towers, support the side spans from the piers and banks, and stiffen the deck where cables cannot reach. Watch the seismic check as you add weight.',
+    gap: 64, budget: 85000, seed: 163, trees: 10, boats: true, maxY: 18, waterY: -8, deflection: 500,
+    extraTerrain: [pillar(16, -1.5, 1.4, 29), pillar(48, -1.5, 1.4, 31)],
+    extraAnchors: [
+      { x: 15, y: -1.5 }, { x: 17, y: -1.5 }, { x: 47, y: -1.5 }, { x: 49, y: -1.5 },
+      { x: 16, y: 14, pylonTo: -1.5 }, { x: 48, y: 14, pylonTo: -1.5 },
+    ],
+    noBuild: [{ x0: 18.2, y0: -8, x1: 45.8, y1: -0.6, label: 'Shipping channel' }],
+    seismic: { ag: 0.2, at: 5, dur: 8, amp: 0.04, freq: 1.4 },
+    vehicles: [{ kind: 'hgv', delay: 0 }, { kind: 'bus', delay: 1, dir: -1 }, { kind: 'hgv', delay: 4 }, { kind: 'van', delay: 5, dir: -1 }],
   }),
 ];
 

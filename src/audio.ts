@@ -87,6 +87,8 @@ class Audio {
 
   splash(big: boolean) { this.noise(big ? 0.9 : 0.35, 'lowpass', big ? 1800 : 2600, 0.6, big ? 0.6 : 0.15, 200); }
 
+  rumble() { this.noise(3.2, 'lowpass', 140, 0.9, 0.9, 60); this.tone(42, 2.5, 'sine', 0.3, 0, 30); }
+
   success() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.35, 'triangle', 0.16, i * 0.11)); }
   fail() { [392, 330, 262].forEach((f, i) => this.tone(f, 0.35, 'sawtooth', 0.06, i * 0.15)); }
   start() { this.tone(440, 0.08, 'triangle', 0.12); this.tone(660, 0.12, 'triangle', 0.12, 0.08); }

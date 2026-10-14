@@ -198,10 +198,10 @@ export class Renderer {
     const worldT = () => ctx.setTransform(z * dpr, 0, 0, -z * dpr, (this.W / 2 - this.cam.x * z + sx) * dpr, (this.H / 2 + this.cam.y * z + sy) * dpr);
     worldT();
 
-    const gx = sim?.groundX ?? 0;
+    const gx = sim?.groundX ?? 0, gy = sim?.groundY ?? 0;
     if (level.boats) this.drawBoats(level, ov.time, true);
     ctx.save();
-    ctx.translate(gx, 0);
+    ctx.translate(gx, gy);
     if (level.highwayY !== null) this.drawHighway(level, ov.time);
     this.drawHouses();
     this.drawPylons(level);
@@ -218,7 +218,7 @@ export class Renderer {
     if (sim) this.drawSimBridge(sim, ov);
     else this.drawDesign(design, ov);
     ctx.save();
-    ctx.translate(gx, 0);
+    ctx.translate(gx, gy);
     this.drawAnchors(level);
     ctx.restore();
     if (sim) {
@@ -1078,6 +1078,30 @@ export class Renderer {
         ctx.fillRect(0, y0 + 1.15, L, 0.14);
         break;
       }
+      case 'haul': {
+        // low-loader trailer carrying a transformer, pulled by a heavy tractor unit
+        const cab = 2.4, deckTop = y0 + 0.75;
+        ctx.fillStyle = '#2b2f36';
+        ctx.fillRect(0, y0 + 0.25, 6.4, 0.5);
+        ctx.beginPath(); ctx.moveTo(6.4, y0 + 0.25); ctx.lineTo(6.4, deckTop); ctx.lineTo(7.4, y0 + 1.25); ctx.lineTo(10.6, y0 + 1.25); ctx.lineTo(10.6, y0 + 0.9); ctx.lineTo(7.6, y0 + 0.9); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#5d6b78';
+        ctx.beginPath(); ctx.roundRect(0.4, deckTop, 5.6, H - 1.0, 0.12); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#46525e';
+        for (let i = 0; i < 6; i++) ctx.fillRect(0.7 + i * 0.9, deckTop + 0.3, 0.45, H - 1.6);
+        ctx.fillStyle = '#ffcf33';
+        ctx.fillRect(0.4, deckTop + H - 1.15, 5.6, 0.15);
+        ctx.fillStyle = '#2b2f36';
+        ctx.fillRect(10.2, y0 + 0.2, L - 10.2, 0.45);
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.moveTo(L - cab, y0 + 0.2); ctx.lineTo(L - cab, y0 + H - 0.4); ctx.lineTo(L - 0.5, y0 + H - 0.4);
+        ctx.lineTo(L, y0 + 1.5); ctx.lineTo(L, y0 + 0.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = glass;
+        ctx.beginPath(); ctx.moveTo(L - cab + 0.2, y0 + H - 0.6); ctx.lineTo(L - 0.58, y0 + H - 0.6); ctx.lineTo(L - 0.12, y0 + 1.6); ctx.lineTo(L - cab + 0.2, y0 + 1.6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffcf33';
+        ctx.fillRect(L - cab + 0.3, y0 + H - 0.4, 1.2, 0.18);
+        break;
+      }
       case 'hgv':
       case 'design': {
         const cab = 2.3;
@@ -1117,7 +1141,7 @@ export class Renderer {
       ctx.moveTo(mx, my); ctx.lineTo(mx - 0.35, my + 0.5); ctx.lineTo(mx + 0.35, my + 0.5); ctx.closePath(); ctx.fill();
     }
     ctx.restore();
-    for (const w of wheels) this.wheel(w.x, w.y, r, spin, kind === 'hgv' || kind === 'design' || kind === 'bus');
+    for (const w of wheels) this.wheel(w.x, w.y, r, spin, kind === 'hgv' || kind === 'design' || kind === 'bus' || kind === 'haul');
   }
 
   private wheel(x: number, y: number, r: number, spin: number, heavy: boolean) {

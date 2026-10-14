@@ -7,7 +7,7 @@ import type { Design, DBeam } from './design';
 import type { AnalysisResult } from './analysis';
 import type { Level } from './levels';
 
-export interface BreakInfo { designId: number; force: number; mat: MaterialId | null | undefined }
+export interface BreakInfo { designId: number; force: number; mat: MaterialId | null | undefined; t?: number }
 export interface TestInfo {
   passed: boolean;
   firstBreak: BreakInfo | null;
@@ -83,6 +83,10 @@ export function diagnoseTest(level: Level, design: Design, an: AnalysisResult, t
         tips.push(bigger ? `Tension capacity is simply strength × area: a bigger section (${bigger}) fixes it.` : 'Already the largest section — add a parallel member or deepen the truss to reduce the force.');
         if (b.mat === 'timber') tips.push('Steel is about 18× stronger than timber in tension per area.');
       }
+      const q = level.seismic;
+      if (q && test.firstBreak.t !== undefined && test.firstBreak.t >= q.at && test.firstBreak.t <= q.at + q.dur + 1) {
+        tips.unshift('It failed while the ground was shaking. Earthquake forces come from the bridge\'s own mass, so a lighter structure feels less — and any tall support needs diagonal bracing in every panel.');
+      }
       if (role(design, b) === 'chord' || b.mat === 'deck') tips.push('A deeper truss reduces chord forces: force ≈ bending moment ÷ depth. Aim for a depth around span ÷ 8.');
       d = {
         icon: buckled ? '⌇' : compression ? '⇥' : '⇿',
@@ -131,6 +135,7 @@ export function improvementTips(level: Level, design: Design, an: AnalysisResult
         tips.push(`Strength: a ${role(design, b)} is at ${pct(r.util)} of its design capacity (${r.mode}). ${r.mode === 'buckling' ? 'Brace it halfway or pick a stockier section.' : `Pick a bigger section${nextSection(b) ? ` — ${nextSection(b)}` : ''}.`} It survived the test, but the code demands a safety margin.`);
       }
     } else if (c.id === 'sls') tips.push(`Deflection: the deck moves ${(an.deflection * 1000).toFixed(0)} mm, more than ${(an.deflectionLimit * 1000).toFixed(0)} mm. Deepen the truss or use stiffer (steel) chords.`);
+    else if (c.id === 'seis') tips.push('Seismic: under the earthquake load case a member is over capacity. Lighten heavy parts (a concrete deck adds a lot of mass), brace tall supports with diagonals, and enlarge the highlighted members.');
     else if (c.id === 'grad') tips.push(`Gradient: the steepest deck panel is ${(an.gradient * 100).toFixed(1)}%; keep it under ${Math.round(level.maxGradient * 100)}% by lining the deck up straight between the anchors.`);
   }
   if (cost > level.budget * 0.8) {
@@ -170,6 +175,10 @@ export function checkHint(design: Design, an: AnalysisResult, id: string, level:
       return { text: 'Too bendy: deepen the truss, add supports underneath, or use stiffer steel chords.', beams: [], node: null };
     case 'grad':
       return { text: `Flatten the deck: no panel steeper than ${Math.round(level.maxGradient * 100)}%.`, beams: design.beams.filter((b) => b.mat === 'deck').filter((b) => { const A = design.node(b.a)!, B = design.node(b.b)!; return Math.abs((B.y - A.y) / (B.x - A.x || 1e-6)) > level.maxGradient; }).map((b) => b.id), node: null };
+    case 'seis': {
+      const over = design.beams.filter((x) => (an.members.get(x.id)?.util ?? 0) > 1).map((x) => x.id);
+      return { text: 'Too weak for the earthquake case. Lighter decks attract less force; brace tall supports and enlarge the highlighted members.', beams: over, node: null };
+    }
     case 'slack':
       return { text: 'Some cables go slack under traffic — they need a downward pull (deck weight) to stay taut, or a different angle.', beams: [], node: null };
   }
