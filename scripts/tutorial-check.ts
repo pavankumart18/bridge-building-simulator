@@ -5,7 +5,7 @@ import { analyse } from '../src/analysis';
 import { Sim } from '../src/physics';
 
 const t0 = performance.now();
-const d = new Design(LEVELS[0]);
+const d = new Design(LEVELS.find((l) => l.id === 'l1')!);
 const id = (x: number, y: number) => (d.nodes.find((n) => n.x === x && n.y === y) ?? d.addNode(x, y)).id;
 const place = (x: number, y: number) => d.nodes.some((n) => n.x === x && n.y === y) || d.placeable({ x, y });
 let ok = true;

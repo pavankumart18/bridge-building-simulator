@@ -7,9 +7,11 @@ import { Sim } from '../src/physics';
 import EX from '../src/examples.json';
 const t0 = performance.now();
 let bad = 0;
+const stored = EX as Record<string, { json: string }>;
+if (!stored.l0) { console.log('l0 ✗ starter solution missing'); bad++; }
 for (const level of LEVELS) {
-  const ex = (EX as Record<string, { json: string }>)[level.id];
-  if (!ex) { console.log(`${level.id} ✗ missing`); bad++; continue; }
+  const ex = stored[level.id];
+  if (!ex) continue; // only the Starter project ships a worked solution
   const d = new Design(level);
   d.load(ex.json);
   const geom = d.nodes.every((n) => n.anchor || d.placeable(n)) && d.beams.every((b) => d.beamLength(b) <= MATERIALS[b.mat].maxLength + 1e-6 && d.segmentAllowed(d.node(b.a)!, d.node(b.b)!));

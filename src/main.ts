@@ -40,7 +40,7 @@ interface Progress { stars: number; best: number }
 const progress: Record<string, Progress> = store.get('progress', {});
 
 // ---------------- state ----------------
-let level: Level = ALL_LEVELS.find((l) => l.id === store.get('level', 'l1')) ?? LEVELS[0];
+let level: Level = ALL_LEVELS.find((l) => l.id === store.get('level', 'l0')) ?? LEVELS[0];
 let design = new Design(level);
 let sim: Sim | null = null;
 let analysis: AnalysisResult | null = null;
@@ -613,17 +613,18 @@ function loadExample() {
   fitView();
   view = 'util';
   syncHud();
-  toast(`3★ example loaded (${fmt(ex.cost)}) — your own design is one ⌘Z away`);
+  toast(`Perfect solution loaded (${fmt(ex.cost)}) — study it, then rebuild it yourself`);
   audio.place();
 }
 
 function exampleCard() {
   const ex = EXAMPLES[level.id];
   if (!ex || level.playground) return '';
-  return `<h3>Stuck? Study a 3★ example</h3>
+  return `<h3>The perfect 3★ solution</h3>
     <div class="example"><div class="ex-stars">★★★</div><div><p>${ex.desc}</p>
       <div class="ex-facts"><span>${fmt(ex.cost)} · ${Math.round((ex.cost / level.budget) * 100)}% of budget</span><span>max utilisation ${Math.round(ex.util * 100)}%</span><span>deflection ${ex.defl.toFixed(0)} mm</span><span>load test peak ${Math.round(ex.peak * 100)}%</span></div>
-      <button class="btn" data-ex="1">Load the 3★ example</button><span class="muted small"> Replaces your design (⌘Z restores it). Examples earn no stars — beat its cost with your own.</span></div></div>`;
+      <p class="muted small" style="margin:0 0 10px">The cheapest design we found that passes every check and the load test. This is the only project with a worked solution — from the next one on, you're the engineer.</p>
+      <button class="btn" data-ex="1">Load the perfect solution</button><span class="muted small"> Replaces your design (⌘Z restores it). It earns no stars — rebuild it yourself to earn them.</span></div></div>`;
 }
 
 function openBrief() {
@@ -753,7 +754,7 @@ function diagHtml(d: Diagnosis, kind: 'fail' | 'improve') {
   pendingFocus = d.focusBeams.length || d.focusNode !== null ? { beams: d.focusBeams, node: d.focusNode } : null;
   return `<div class="diag ${kind}"><div class="diag-head"><span class="diag-ic">${d.icon}</span><div><small>${kind === 'fail' ? 'What went wrong' : 'How to earn more stars'}</small><b>${d.title}</b></div></div>
     <p>${d.why}</p><ul>${d.tips.map((t) => `<li>${t}</li>`).join('')}</ul>
-    ${kind === 'fail' && (fails[level.id] ?? 0) >= 2 && EXAMPLES[level.id] ? `<button class="btn" data-act="example" style="margin-bottom:6px">★ Load the 3★ example to study</button>` : ''}
+    ${kind === 'fail' && (fails[level.id] ?? 0) >= 2 && EXAMPLES[level.id] ? `<button class="btn" data-act="example" style="margin-bottom:6px">★ Load the perfect solution to study</button>` : ''}
     ${pendingFocus ? `<button class="btn" data-act="showme">🔍 Show me ${d.focusNode !== null && !d.focusBeams.length ? 'the joint' : d.focusBeams.length > 1 ? 'these members' : 'the member'}</button>` : ''}</div>`;
 }
 
@@ -782,7 +783,7 @@ function showResult() {
     const imp = improvementTips(level, design, an);
     if (imp) diag = diagHtml(imp, 'improve');
   }
-  if (usedExample) diag = `<div class="diag improve"><div class="diag-head"><span class="diag-ic">★</span><div><small>Example design</small><b>This is the built-in 3★ example</b></div></div><p>Examples don't earn stars. Study how it works — switch to Utilisation and Forces view — then build your own version for less than ${fmt(EXAMPLES[level.id]?.cost ?? cost)}.</p></div>` + diag;
+  if (usedExample) diag = `<div class="diag improve"><div class="diag-head"><span class="diag-ic">★</span><div><small>Worked solution</small><b>This is the built-in perfect solution</b></div></div><p>It doesn't earn stars. Study how it works in the Utilisation and Forces views, clear it, and build it yourself — then move on to the next project, where there is no worked solution.</p></div>` + diag;
   if (stars && !usedExample) {
     const prev = progress[level.id];
     progress[level.id] = { stars: Math.max(prev?.stars ?? 0, stars), best: Math.min(prev?.best ?? Infinity, cost) };
@@ -1001,7 +1002,7 @@ const tut = new Tutorial(TUT_STEPS, (completed) => {
 
 function startTutorial() {
   document.querySelectorAll('.overlay').forEach((o) => o.classList.add('hidden'));
-  const l1 = LEVELS[0];
+  const l1 = LEVELS.find((l) => l.id === 'l1')!;
   if (level.id !== l1.id || sim) loadLevel(l1, false);
   if (design.beams.length) {
     design.checkpoint();

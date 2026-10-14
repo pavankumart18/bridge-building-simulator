@@ -116,7 +116,7 @@ function familyFor(level: Level): Generator<Candidate>[] {
 
 const out: Record<string, { json: string; cost: number; desc: string; util: number; defl: number; peak: number }> =
   existsSync('src/examples.json') ? JSON.parse(readFileSync('src/examples.json', 'utf8')) : {};
-const only = process.argv[2];
+const only = process.argv[2] ?? 'l0'; // only the Starter project ships an example
 for (const level of LEVELS) {
   if (only && level.id !== only) continue;
   const t0 = performance.now();

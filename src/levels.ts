@@ -137,6 +137,15 @@ function site(o: Opts): Level {
 
 export const LEVELS: Level[] = [
   site({
+    id: 'l0', code: 'BR-100', name: 'Starter Bridge',
+    client: 'Span Academy',
+    brief: 'Your first job: carry one small car over an 8 m stream. This starter project comes with a worked, perfect three-star solution in the brief — load it, study why it works, then delete it and build your own.',
+    lesson: 'Every bridge does one job: move the weight of traffic sideways to the banks. A row of triangles alongside the deck — above or below it — turns that weight into simple pulls and pushes in each bar.',
+    hint: 'Deck panels from anchor to anchor, then a row of light timber triangles above (or below) the deck, joined along their tips. Keep it small — this bridge only carries a car.',
+    gap: 8, budget: 7500, seed: 7, trees: 8, deflection: 500,
+    vehicles: [{ kind: 'car', delay: 0 }],
+  }),
+  site({
     id: 'l1', code: 'BR-101', name: 'Farm Track',
     client: 'Hollins Farm',
     brief: 'A farmer needs to get a pickup and the family car over a 10 m creek. Keep it simple and cheap.',
