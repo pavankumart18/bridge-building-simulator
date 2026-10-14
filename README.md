@@ -9,6 +9,10 @@ Design truss, arch and suspension bridges with real materials and section sizes,
 
 Click **▶ Walkthrough** (or press `W`) in the game for the video guide with chapters and written steps.
 
+## Data story: *How a bridge holds you up*
+
+Open **`Bridge Story.html`** (or `/story.html` on the dev server, or **Story** in the game's top bar). A scroll-driven introduction to bridge engineering for newcomers, in seven chapters: loads, triangles, tension & compression (drive the truck yourself and watch live forces and influence lines), buckling, truss depth, safety factors (with a real dynamic load test), and which bridge form suits which span. Every number and colour is computed live in the browser by the simulator's own structural engine.
+
 ## Features
 
 - **Materials & sections:** glulam GL24h timber, S355 steel hollow sections, spiral-strand cable and three deck types, with published properties. Compression members buckle (Rankine–Gordon / Euler).
@@ -21,8 +25,9 @@ Click **▶ Walkthrough** (or press `W`) in the game for the video guide with ch
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Dev server |
-| `npm run build` | Type-check, build a single-file `dist/index.html`, copy to `Play Span.html` |
+| `npm run build` | Type-check, build `Play Span.html` (game) and `Bridge Story.html` (data story) as single files |
 | `npm run test:physics` | Static vs dynamic solver validation + level balance check |
 | `npm run test:tutorial` | Verifies the tutorial bridge passes every check |
 | `npm run test:playground` | Playground smoke test (traffic, driving, loads, earthquake) |
+| `npx tsx scripts/story-numbers.ts` | Prints every number the data story quotes |
 | `npm run video` | Re-records `Span Tutorial.mp4` and its chapters (needs dev server + Google Chrome) |

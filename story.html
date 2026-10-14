@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How a Bridge Holds You Up</title>
+    <meta name="description" content="A scroll-driven data story: what really happens inside a bridge when a 26-tonne truck drives across — every number computed live by a real structural engine." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e3402f'/%3E%3Cpath d='M4 22h24M6 22l5-9 5 9 5-9 5 9M11 13h10' stroke='white' stroke-width='2.4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="topnav">
+      <a class="logo" href="#top"><svg viewBox="0 0 32 32" width="24" height="24"><rect width="32" height="32" rx="8" fill="#e3402f" /><path d="M4 22h24M6 22l5-9 5 9 5-9 5 9M11 13h10" stroke="#fff" stroke-width="2.4" fill="none" stroke-linejoin="round" /></svg>Span</a>
+      <div class="progress"><i id="progress"></i></div>
+      <a class="navbtn" data-game href="#">Open the simulator →</a>
+    </nav>
+
+    <header class="hero" id="top">
+      <div class="hero-text">
+        <div class="kicker">A data story · about 8 minutes</div>
+        <h1>How a bridge<br />holds you up</h1>
+        <p class="lede">Every day, heavy trucks cross gaps of thin air. Nothing about it is magic — it is <b>forces</b>, flowing through steel and timber to the ground. Scroll to follow one <b><span data-n="truckT"></span> truck</b> across a <b>16 m</b> bridge, and see the numbers an engineer sees.</p>
+        <div class="hero-stats">
+          <div><b data-n="truckKN"></b><span>truck weight</span></div>
+          <div><b>16 m</b><span>span</span></div>
+          <div><b data-n="chordPeak"></b><span>peak force in one member</span></div>
+        </div>
+        <p class="note">Every number and colour on this page is computed live in your browser by the same structural engine that runs the <a data-game href="#">Span simulator</a>.</p>
+      </div>
+      <div class="hero-stage" id="heroStage"></div>
+      <div class="scroll-cue">Scroll<span></span></div>
+    </header>
+
+    <!-- 1 -->
+    <section class="chapter" id="c1">
+      <div class="chap-head"><span>Chapter 1</span><h2>Gravity is the only enemy</h2></div>
+      <div class="scrolly">
+        <div class="steps">
+          <div class="step" data-step="approach"><h3>A truck arrives</h3><p>A loaded three-axle tipper weighs <b data-n="truckT"></b>. Gravity pulls it down with <b data-n="truckKN"></b> — roughly the weight of 26 small cars stacked on one spot.</p><p>On the bank, the ground carries that weight directly. Over the gap, the bridge must take over.</p></div>
+          <div class="step" data-step="axles"><h3>Weight arrives through the wheels</h3><p>It doesn't press down evenly: it comes through each axle — <b data-n="axles"></b>. The arrows show those forces landing on the road deck.</p><p>The bridge also carries itself: its own steel weighs <b data-n="selfKN"></b>, and that load never goes away.</p></div>
+          <div class="step" data-step="reactions"><h3>Everything ends at the ground</h3><p>Every newton that goes in must come out at the supports. With the truck just past midway, the abutments push back with <b data-n="reacts"></b>.</p><p>The support nearer the truck works harder. A bridge is simply a <b>path</b> for load to reach the ground — the rest of this story is about making that path strong, stiff and cheap.</p></div>
+        </div>
+        <div class="stage"><div class="stage-inner" id="s1"></div></div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="chapter" id="c2">
+      <div class="chap-head"><span>Chapter 2</span><h2>Squares fold. Triangles don't.</h2></div>
+      <div class="scrolly">
+        <div class="steps">
+          <div class="step" data-step="square"><h3>A frame of four bars</h3><p>Engineers model a truss as straight bars joined by <b>pins</b> that can rotate freely. Build a square from four of them and push sideways…</p><p>…and it simply leans over. Nothing has to stretch or squash, so nothing resists. The solver agrees: <b data-n="squareVerdict"></b>.</p></div>
+          <div class="step" data-step="triangle"><h3>Add one diagonal</h3><p>Now the shape can't change without that diagonal changing length — and bars fight hard against changing length. The frame locks solid.</p><p>Under a 10 kN push the diagonal carries <b data-n="diagKN"></b> while the posts share the rest. <b>Triangles are the atom of every truss.</b></p></div>
+          <div class="step" data-step="count"><h3>An engineer's quick check</h3><p>Count members <i>m</i>, support reactions <i>r</i> and joints <i>j</i>. A pin-jointed truss needs <b>m + r ≥ 2j</b> — one equation per joint per direction.</p><p>Our 16 m bridge: <b data-n="count"></b>. Enough bars, every panel triangulated — it stands.</p></div>
+        </div>
+        <div class="stage"><div class="stage-inner" id="s2"></div></div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="chapter" id="c3">
+      <div class="chap-head"><span>Chapter 3</span><h2>Push and pull</h2></div>
+      <div class="scrolly">
+        <div class="steps">
+          <div class="step" data-step="colors"><h3>Every bar is pulled or pushed</h3><p>Pins can't bend, so each bar carries only an axial force: <b class="t-ten">tension</b> (pulled) or <b class="t-com">compression</b> (pushed).</p><p>With the truck in the middle, the <b class="t-com">top chord</b> is squeezed with <b data-n="midTop"></b> while the <b class="t-ten">road deck</b> below it is stretched. Together they act like the top and bottom of a beam.</p></div>
+          <div class="step" data-step="drive"><h3>Now you drive</h3><p>Drag the slider and move the truck yourself. Forces flow differently with every metre — watch the end diagonals light up as the truck rolls on and off.</p><p>This is a live calculation: <b>stiffness matrix → displacements → forces</b>, solved every time you move it.</p></div>
+          <div class="step" data-step="influence"><h3>The whole crossing in one chart</h3><p>Engineers call these <b>influence lines</b>: the force in one member for every truck position. The top chord peaks at <b data-n="infTop"></b> when the truck is centred; the end diagonal peaks earlier, at <b data-n="infDiag"></b>, as the truck mounts the bridge.</p><p>Design must cover the <b>worst</b> position for <b>every</b> member — the simulator checks hundreds of positions each time you edit.</p></div>
+        </div>
+        <div class="stage"><div class="stage-inner" id="s3"></div></div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="chapter" id="c4">
+      <div class="chap-head"><span>Chapter 4</span><h2>Length is the enemy of a strut</h2></div>
+      <div class="scrolly">
+        <div class="steps">
+          <div class="step" data-step="pull"><h3>Pulling is easy</h3><p>A 100 mm steel box section can hold <b data-n="steelT"></b> in tension. Make it 1 m long or 8 m long — <b>it doesn't matter</b>. Tension just stretches the steel until it yields.</p></div>
+          <div class="step" data-step="push"><h3>Pushing is different</h3><p>Squeeze the same bar and it fails sideways — it <b>buckles</b>. At 1 m it carries <b data-n="steelC1"></b>; at 4 m only <b data-n="steelC4"></b>; at 8 m just <b data-n="steelC8"></b>.</p><p>Euler showed in 1757 that buckling strength falls with the <b>square of the length</b>. Timber, far less stiff than steel, suffers even sooner.</p></div>
+          <div class="step" data-step="rule"><h3>The design rule</h3><p>Keep compression members <b>short and stocky</b>; let long members work in tension. That's why bridges are full of triangles with short top chords — and why cables, which can only pull, can be so long and thin.</p></div>
+        </div>
+        <div class="stage"><div class="stage-inner" id="s4"></div></div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="chapter" id="c5">
+      <div class="chap-head"><span>Chapter 5</span><h2>Depth is free strength</h2></div>
+      <div class="scrolly">
+        <div class="steps">
+          <div class="step" data-step="shallow"><h3>A shallow truss strains</h3><p>Build our truss only 1 m deep and, with code load factors, the top chord must resist <b data-n="d1"></b>.</p><p>The truck creates a bending moment; the chords resist it as a pair of forces. The lever arm between them is the depth — <b>force ≈ moment ÷ depth</b>.</p></div>
+          <div class="step" data-step="deep"><h3>Make it deeper</h3><p>At 5 m deep the same chord needs only <b data-n="d5"></b> — about a fifth. The bridge also stiffens: deflection falls from <b data-n="def1"></b> to about <b data-n="def5"></b>.</p></div>
+          <div class="step" data-step="trade"><h3>But nothing is free</h3><p>Deeper means longer diagonals and more material: cost rises from <b data-n="cost1"></b> to <b data-n="cost5"></b> here, and the end diagonals hardly change. Engineers hunt for the sweet spot — often a depth of about <b>1/8 to 1/10 of the span</b>.</p></div>
+        </div>
+        <div class="stage"><div class="stage-inner" id="s5"></div></div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="chapter" id="c6">
+      <div class="chap-head"><span>Chapter 6</span><h2>Engineers plan for worse than worst</h2></div>
+      <div class="scrolly">
+        <div class="steps">
+          <div class="step" data-step="peak"><h3>What really happens</h3><p>We drove the truck across a timber version of the bridge in the full dynamic simulation. The most loaded top chord peaked at <b data-n="sPeak"></b>.</p></div>
+          <div class="step" data-step="ned"><h3>What we design for</h3><p>Codes don't trust a single test. They multiply the bridge's own weight by <b>1.35</b> and traffic by <b>1.5</b>, then take the worst truck position. Design force: <b data-n="sNEd"></b>.</p></div>
+          <div class="step" data-step="nrd"><h3>What we allow the material to do</h3><p>Material strength is divided by a safety factor too — <b>1.25</b> for timber, which varies more than steel. Allowed resistance: <b data-n="sNRd"></b>, while it would actually fail at <b data-n="sNRk"></b>.</p><p>The gap between the bars is the margin that keeps people safe when trucks are overloaded, timber has a knot, or a winter is harsh.</p></div>
+        </div>
+        <div class="stage"><div class="stage-inner" id="s6"></div></div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="chapter" id="c7">
+      <div class="chap-head"><span>Chapter 7</span><h2>Pick the right shape for the gap</h2></div>
+      <div class="scrolly">
+        <div class="steps">
+          <div class="step" data-step="forms"><h3>Every form has a sweet spot</h3><p><b>Beams</b> are simple but run out of strength quickly. <b>Trusses</b> use triangles to go further. <b>Arches</b> turn load into pure compression. <b>Cable-stayed</b> and <b>suspension</b> bridges hang the deck from cables, which only pull — so they span the farthest.</p></div>
+          <div class="step" data-step="you"><h3>Where you start</h3><p>In the Span simulator you'll build from <b>10 m to 48 m</b> — the territory of trusses, small arches and short cable bridges. The physics is the same all the way up to two-kilometre suspension spans.</p></div>
+        </div>
+        <div class="stage"><div class="stage-inner" id="s7"></div></div>
+      </div>
+    </section>
+
+    <section class="outro">
+      <h2>Now build one.</h2>
+      <p>Lay a deck, add triangles, size your members, check them against the code — then send real traffic across and watch your bridge hold.</p>
+      <div class="ctas"><a class="cta primary" data-game href="#">Open the simulator</a><a class="cta" data-game="walkthrough" href="#">▶ Watch the walkthrough</a></div>
+      <div class="method">
+        <h3>How these numbers were made</h3>
+        <p>The bridge is a 16 m steel Warren truss (8 deck panels of 2 m, 2.5 m deep; SHS 150×8 diagonals and SHS 200×10 top chord) carrying a 26 t, three-axle tipper. Static forces use a linear-elastic direct-stiffness truss solver; buckling uses the Rankine–Gordon combination of squash load and Euler load; design checks use 1.35·G + 1.5·Q with γ<sub>M</sub> = 1.0 (steel) and 1.25 (timber). The load test in chapter 6 is the simulator's dynamic XPBD model (40 substeps per frame) on a timber variant. Span ranges in chapter 7 are approximate typical economic ranges; records are well-known examples and newer bridges may exceed them.</p>
+        <p class="muted" id="timing"></p>
+      </div>
+    </section>
+
+    <script type="module" src="/src/story/story.ts"></script>
+  </body>
+</html>

@@ -1413,8 +1413,12 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
+($('storyLink') as HTMLAnchorElement).href = location.protocol === 'file:' ? 'Bridge%20Story.html' : 'story.html';
 loadLevel(level, false);
-if (!store.get('seenWelcome', false)) {
+if (location.hash === '#walkthrough') {
+  store.set('seenWelcome', true);
+  openWalkthrough();
+} else if (!store.get('seenWelcome', false)) {
   store.set('seenWelcome', true);
   openWelcome();
 } else openBrief();

@@ -1,0 +1,20 @@
+/** Prints the numbers the data story quotes, straight from the engine. */
+import { buildBridge, forcesAt, reactions, selfWeightKN, influence, depthStudy, bucklingCurves, safetyStudy, TRUCK } from '../src/story/model';
+const t0 = performance.now();
+const b = buildBridge();
+console.log('truck', TRUCK.mass, 'kg =', (TRUCK.mass * 9.81 / 1000).toFixed(0), 'kN; axles', TRUCK.axles.map((a) => (a.share * TRUCK.mass * 9.81 / 1000).toFixed(0)).join('/'));
+console.log('self weight kN', selfWeightKN(b).toFixed(0));
+const mid = 8 - TRUCK.length / 2;
+const f = forcesAt(b, mid);
+console.log('reactions mid', reactions(b, f.forces).map((r) => (r.Ry / 1000).toFixed(0)));
+console.log('mid top chord', (f.forces.get(b.midTop)! / 1000).toFixed(0), 'mid deck', (f.forces.get(b.midDeck)! / 1000).toFixed(0), 'end diag', (f.forces.get(b.endDiag)! / 1000).toFixed(0));
+const dead = forcesAt(b, null);
+console.log('dead only top chord', (dead.forces.get(b.midTop)! / 1000).toFixed(0), 'max defl mm', (Math.max(...[...f.disp.values()].map((d) => -d.dy)) * 1000).toFixed(1));
+const inf = influence(b, [b.midTop, b.midDeck, b.endDiag]);
+for (const [id, pts] of inf) console.log('inf', id, 'min', Math.min(...pts.map((p) => p[1])).toFixed(0), 'max', Math.max(...pts.map((p) => p[1])).toFixed(0));
+console.table(depthStudy().map((r) => ({ h: r.h, chord: r.chord.toFixed(0), diag: r.diag.toFixed(0), cost: r.cost, defl: r.defl.toFixed(1) })));
+const bc = bucklingCurves();
+const at = (p: [number, number][], L: number) => p.find((q) => Math.abs(q[0] - L) < 0.01)![1].toFixed(0);
+console.log('steel T', at(bc.steelT, 2), 'steel C @1,2,4,8', at(bc.steelC, 1), at(bc.steelC, 2), at(bc.steelC, 4), at(bc.steelC, 8), 'timber C @2,4', at(bc.timberC, 2), at(bc.timberC, 4));
+console.log(safetyStudy());
+console.log('total ms', (performance.now() - t0).toFixed(0));

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && cp dist/index.html 'Play Span.html'",
+    "build": "tsc --noEmit && vite build && cp dist/index.html 'Play Span.html' && vite build --config vite.story.config.ts && cp dist-story/story.html 'Bridge Story.html'",
     "preview": "vite preview",
     "test:physics": "tsx scripts/headless-test.ts",
     "test:tutorial": "tsx scripts/tutorial-check.ts",

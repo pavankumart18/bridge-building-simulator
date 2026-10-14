@@ -388,3 +388,52 @@ export function analyse(level: Level, nodes: DNode[], beams: DBeam[], designKind
     checks, passed: checks.every((c) => c.ok || c.id === 'slack'), cases, ms: performance.now() - t0,
   };
 }
+
+/**
+ * Single linear load case (no cables / relaxation): member forces and joint displacements
+ * for dead load plus the given vertical point loads (N, downward positive). Used by the data story.
+ */
+export function solveCase(nodes: DNode[], beams: DBeam[], pointLoads: Map<number, number>, includeDead = true) {
+  const byId = new Map(nodes.map((x) => [x.id, x]));
+  const idx = new Map<number, number>();
+  let n = 0;
+  for (const nd of nodes) {
+    if (!beams.some((b) => b.a === nd.id || b.b === nd.id)) continue;
+    if (nd.anchor) idx.set(nd.id, -1);
+    else { idx.set(nd.id, n); n += 2; }
+  }
+  const el = beams.map((b) => {
+    const A = byId.get(b.a)!, B = byId.get(b.b)!;
+    const L = Math.hypot(B.x - A.x, B.y - A.y);
+    const p = propsOf(b.mat, b.sec);
+    return { b, L, c: (B.x - A.x) / L, s: (B.y - A.y) / L, EA: p.E * p.A, mass: p.massPerM * L };
+  });
+  const K = new Float64Array(n * n);
+  const F = new Float64Array(n);
+  for (const e of el) {
+    const k = e.EA / e.L, cc = e.c * e.c * k, ss = e.s * e.s * k, cs = e.c * e.s * k;
+    const blk = [[cc, cs], [cs, ss]];
+    const da = idx.get(e.b.a)!, db = idx.get(e.b.b)!;
+    for (let p = 0; p < 2; p++) for (let q = 0; q < 2; q++) {
+      if (da >= 0) K[(da + p) * n + da + q] += blk[p][q];
+      if (db >= 0) K[(db + p) * n + db + q] += blk[p][q];
+      if (da >= 0 && db >= 0) { K[(da + p) * n + db + q] -= blk[p][q]; K[(db + p) * n + da + q] -= blk[p][q]; }
+    }
+    if (includeDead) for (const d of [da, db]) if (d >= 0) F[d + 1] -= (e.mass / 2) * g;
+  }
+  if (includeDead) for (const [, d] of idx) if (d >= 0) F[d + 1] -= JOINT_MASS * g;
+  for (const [id, P] of pointLoads) { const d = idx.get(id); if (d !== undefined && d >= 0) F[d + 1] -= P; }
+  let maxD = 0;
+  for (let i = 0; i < n; i++) maxD = Math.max(maxD, K[i * n + i]);
+  if (cholesky(K, n, maxD * 1e-10) >= 0) return null;
+  const u = solveChol(K, n, F);
+  const forces = new Map<number, number>();
+  for (const e of el) {
+    const da = idx.get(e.b.a)!, db = idx.get(e.b.b)!;
+    const ua = da >= 0 ? [u[da], u[da + 1]] : [0, 0], ub = db >= 0 ? [u[db], u[db + 1]] : [0, 0];
+    forces.set(e.b.id, (e.EA / e.L) * ((ub[0] - ua[0]) * e.c + (ub[1] - ua[1]) * e.s));
+  }
+  const disp = new Map<number, { dx: number; dy: number }>();
+  for (const [id, d] of idx) disp.set(id, d >= 0 ? { dx: u[d], dy: u[d + 1] } : { dx: 0, dy: 0 });
+  return { forces, disp };
+}

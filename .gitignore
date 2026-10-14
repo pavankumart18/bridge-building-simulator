@@ -1,4 +1,5 @@
 node_modules
 dist
+dist-story
 .video-tmp
 .DS_Store
