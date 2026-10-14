@@ -573,7 +573,7 @@ function loadLevel(l: Level, showBrief = true) {
   if (tool === 'drop' && !level.playground) tool = 'deck';
   buildTools();
   renderSections();
-  R.fit(level);
+  fitView();
   syncHud();
   renderPlayground();
   analysis = null;
@@ -764,7 +764,7 @@ function openHelp() {
       <div><kbd>X</kbd> delete tool</div><div><kbd>Shift</kbd> free placement / multi-select</div>
       <div><kbd>Space</kbd> load test</div><div><kbd>P</kbd> pause · <kbd>.</kbd> step</div>
       <div><kbd>F</kbd> speed · <kbd>C</kbd> follow</div><div><kbd>Tab</kbd> cycle view</div>
-      <div><kbd>N</kbd> labels · <kbd>D</kbd> deflection</div><div><kbd>G</kbd> grid · <kbd>R</kbd> recenter</div>
+      <div><kbd>N</kbd> labels · <kbd>D</kbd> deflection</div><div><kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd>/<kbd>R</kbd> fit</div>
       <div><kbd>⌘Z</kbd> undo · <kbd>⇧⌘Z</kbd> redo</div><div><kbd>Scroll</kbd> pan · <kbd>Pinch/⌘</kbd> zoom</div>
       <div><kbd>B</kbd> brief · <kbd>L</kbd> projects</div><div><kbd>←</kbd><kbd>→</kbd> drive (Playground)</div>
     </div>
@@ -907,7 +907,7 @@ function startTutorial() {
     toast('Your previous design is saved in undo (⌘Z)');
   }
   view = 'material';
-  R.fit(level);
+  fitView();
   syncHud();
   tut.start();
 }
@@ -1216,6 +1216,7 @@ canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const isMouseWheel = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
   if (e.ctrlKey || e.metaKey || isMouseWheel) {
+    zoomAnim = null;
     const before = R.toWorld(e.offsetX, e.offsetY);
     const k = Math.exp(-e.deltaY * (e.ctrlKey && !isMouseWheel ? 0.012 : 0.0015));
     R.cam.zoom = Math.max(5, Math.min(160, R.cam.zoom * k));
@@ -1229,6 +1230,37 @@ canvas.addEventListener('wheel', (e) => {
   }
   updateHover(R.toWorld(mouse.x, mouse.y));
 }, { passive: false });
+
+// ---------------- zoom controls ----------------
+let fitZoom = 40;
+let zoomAnim: { from: number; to: number; ax: number; ay: number; t: number } | null = null;
+/** zoom around a screen point (default: centre of the free canvas area), animated */
+function zoomBy(factor: number, sx?: number, sy?: number) {
+  const ax = sx ?? (R.insets.left + (R.W - R.insets.right - R.insets.left) / 2);
+  const ay = sy ?? (R.insets.top + (R.H - R.insets.bottom - R.insets.top) / 2);
+  const base = zoomAnim ? zoomAnim.to : R.cam.zoom;
+  zoomAnim = { from: R.cam.zoom, to: Math.max(5, Math.min(160, base * factor)), ax, ay, t: 0 };
+}
+function fitView() {
+  R.fit(level);
+  fitZoom = R.cam.zoom;
+  zoomAnim = null;
+}
+function stepZoom(dt: number) {
+  if (!zoomAnim) return;
+  zoomAnim.t = Math.min(1, zoomAnim.t + dt / 0.18);
+  const e = 1 - (1 - zoomAnim.t) ** 3;
+  const before = R.toWorld(zoomAnim.ax, zoomAnim.ay);
+  R.cam.zoom = zoomAnim.from * (zoomAnim.to / zoomAnim.from) ** e;
+  const after = R.toWorld(zoomAnim.ax, zoomAnim.ay);
+  R.cam.x += before.x - after.x;
+  R.cam.y += before.y - after.y;
+  if (zoomAnim.t >= 1) zoomAnim = null;
+}
+$('zoomIn').onclick = () => zoomBy(1.3);
+$('zoomOut').onclick = () => zoomBy(1 / 1.3);
+$('zoomFit').onclick = fitView;
+$('zoomVal').onclick = fitView;
 
 // ---------------- keyboard ----------------
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -1284,10 +1316,11 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'l') openLevels();
   else if (k === 'b') openBrief();
   else if (k === 'w') openWalkthrough();
-  else if (k === 'r') R.fit(level);
+  else if (k === 'r') fitView();
   else if (e.key === '?') openHelp();
-  else if (e.key === '=' || e.key === '+') R.cam.zoom = Math.min(160, R.cam.zoom * 1.15);
-  else if (e.key === '-') R.cam.zoom = Math.max(5, R.cam.zoom / 1.15);
+  else if (e.key === '=' || e.key === '+') zoomBy(1.3);
+  else if (e.key === '-' || e.key === '_') zoomBy(1 / 1.3);
+  else if (e.key === '0') fitView();
   else if (e.key.startsWith('Arrow')) {
     const s = 60 / R.cam.zoom;
     if (e.key === 'ArrowLeft') R.cam.x -= s;
@@ -1384,6 +1417,8 @@ function frame(now: number) {
     if (inspAcc > 0.25) { inspAcc = 0; renderInspector(); }
   }
 
+  stepZoom(dt);
+  $('zoomVal').textContent = `${Math.round((R.cam.zoom / fitZoom) * 100)}%`;
   const r0 = performance.now();
   R.draw(level, design, sim, {
     mode: sim ? 'sim' : 'build',

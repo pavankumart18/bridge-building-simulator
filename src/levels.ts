@@ -211,9 +211,9 @@ export const LEVELS: Level[] = [
   site({
     id: 'l8', code: 'BR-408', name: 'Canyon Arch',
     client: 'Mineral Rail & Road',
-    brief: 'A deep 30 m canyon with solid rock walls. Anchors far down the walls are begging for an arch.',
-    lesson: 'An arch turns vertical load into compression that thrusts outward into the abutments. With good abutments it is extremely efficient.',
-    hint: 'Build a compression arch between the low anchors and hang or prop the deck from it.',
+    brief: 'A deep 30 m canyon with solid rock walls. Anchors down the walls invite an arch — but the client wants the cheapest safe option, whatever its form.',
+    lesson: 'An arch turns vertical load into compression that thrusts outward into the rock. Under a single moving truck, though, a pin-jointed arch tries to fold — so it needs diagonal bracing to the deck, and that bracing costs money. Weigh an arch against a truss.',
+    hint: 'Try both: a braced arch from the wall anchors, and a truss over the deck. Compare their cost and utilisation in the checks panel.',
     gap: 30, waterY: -22, budget: 34000, seed: 83, trees: 5, minY: -21,
     extraAnchors: [{ x: -2, y: -12 }, { x: 32, y: -12 }, { x: -1, y: -6 }, { x: 31, y: -6 }],
     vehicles: [{ kind: 'hgv', delay: 0 }, { kind: 'car', delay: 3, dir: -1 }],

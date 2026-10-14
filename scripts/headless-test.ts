@@ -116,6 +116,44 @@ function suspension(stiff = false) {
   return d;
 }
 
+function pierBridge() {
+  const level = ALL_LEVELS.find((l) => l.id === 'l6')!;
+  const d = new Design(level);
+  const [L, R, P1, P2] = d.nodes;
+  const mid = d.addNode(16, 0);
+  d.addBeam(P1.id, mid.id, 'timber', 2);
+  d.addBeam(P2.id, mid.id, 'timber', 2);
+  addTruss(d, L, mid, { height: 2.5, web: W(2), chord: W(2), deck: 0, panel: 3.2 });
+  addTruss(d, mid, R, { height: 2.5, web: W(2), chord: W(2), deck: 0, panel: 3.2 });
+  return d;
+}
+
+function archBridge() {
+  const level = ALL_LEVELS.find((l) => l.id === 'l8')!;
+  const d = new Design(level);
+  const [L, R, , , A1, A2] = d.nodes; // deck anchors, then arch springings on the canyon walls (-1,-6) (31,-6)
+  const n = 12, x0 = A1.x, x1 = A2.x;
+  const arch = [A1];
+  const deck = [L];
+  for (let i = 1; i < n; i++) {
+    const x = +(x0 + ((x1 - x0) * i) / n).toFixed(3);
+    const u = (x - 15) / 16;
+    arch.push(d.addNode(x, +(-6 + 4.5 * (1 - u * u)).toFixed(3)));
+    deck.push(d.addNode(x, 0));
+  }
+  arch.push(A2);
+  deck.push(R);
+  for (let i = 0; i < deck.length - 1; i++) d.addBeam(deck[i].id, deck[i + 1].id, 'deck', 0);
+  const [AS, PS, DS] = (process.env.ARCH ?? '3,1,0').split(',').map(Number);
+  for (let i = 0; i < arch.length - 1; i++) d.addBeam(arch[i].id, arch[i + 1].id, 'steel', AS);
+  for (let i = 1; i < n; i++) {
+    d.addBeam(arch[i].id, deck[i].id, 'steel', PS); // spandrel posts
+    d.addBeam(arch[i].id, deck[i + 1].id, 'steel', DS); // bracing diagonals
+    d.addBeam(arch[i].id, deck[i - 1].id, 'steel', DS); // counter-diagonals
+  }
+  return d;
+}
+
 const T = performance.now();
 const only = process.argv[2];
 if (!only) validate();
@@ -148,6 +186,8 @@ const cases: [string, () => Design][] = [
   ['x l9 steel150/200 above 3.5 td', () => truss('l9', { height: 3.5, web: S(2), chord: S(3), deck: 0, panel: 3 })],
   ['x l9 steel150/200 above 3.5 sd', () => truss('l9', { height: 3.5, web: S(2), chord: S(3), deck: 1, panel: 3 })],
   ['x l8 timber220/300 above 3.5', () => truss('l8', { height: 3.5, web: W(2), chord: W(3), deck: 0, panel: 3 })],
+  ['x l6 two spans on the pier (timber)', () => pierBridge()],
+  ['x l8 deck arch (steel)', () => archBridge()],
   ['x l7 suspension', () => suspension()],
   ['x l7 suspension + stiffening truss', () => suspension(true)],
 ];

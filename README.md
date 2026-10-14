@@ -11,7 +11,7 @@ Click **▶ Walkthrough** (or press `W`) in the game for the video guide with ch
 
 ## Data story: *How a bridge holds you up*
 
-Open **`Bridge Story.html`** (or `/story.html` on the dev server, or **Story** in the game's top bar). A scroll-driven introduction to bridge engineering for newcomers, in seven chapters: loads, triangles, tension & compression (drive the truck yourself and watch live forces and influence lines), buckling, truss depth, safety factors (with a real dynamic load test), and which bridge form suits which span. Every number and colour is computed live in the browser by the simulator's own structural engine.
+Open **`Bridge Story.html`** (or `/story.html` on the dev server, or **Story** in the game's top bar). A scroll-driven introduction to bridge engineering for newcomers, in seven chapters: loads, triangles, tension & compression (drive the truck yourself and watch live forces and influence lines), buckling, truss depth, safety factors (with a real dynamic load test), and which bridge form suits which span. Readers guess before each reveal, pick the vehicle that crosses, remove members and watch the real simulation collapse, read field notes on the Québec (1907) and Tacoma Narrows (1940) failures, and finish with a design challenge that scores stars and exports a shareable result card. Every number and colour is computed live in the browser by the simulator's own structural engine.
 
 ## Features
 
@@ -30,4 +30,5 @@ Open **`Bridge Story.html`** (or `/story.html` on the dev server, or **Story** i
 | `npm run test:tutorial` | Verifies the tutorial bridge passes every check |
 | `npm run test:playground` | Playground smoke test (traffic, driving, loads, earthquake) |
 | `npx tsx scripts/story-numbers.ts` | Prints every number the data story quotes |
+| `npx tsx scripts/challenge-search.ts` | Searches the story's design challenge for the cheapest compliant bridges |
 | `npm run video` | Re-records `Span Tutorial.mp4` and its chapters (needs dev server + Google Chrome) |

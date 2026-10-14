@@ -14,6 +14,7 @@
     <nav class="topnav">
       <a class="logo" href="#top"><svg viewBox="0 0 32 32" width="24" height="24"><rect width="32" height="32" rx="8" fill="#e3402f" /><path d="M4 22h24M6 22l5-9 5 9 5-9 5 9M11 13h10" stroke="#fff" stroke-width="2.4" fill="none" stroke-linejoin="round" /></svg>Span</a>
       <div class="progress"><i id="progress"></i></div>
+      <button class="navbtn ghostbtn" id="soundBtn" aria-pressed="false" title="Sound effects">🔇 Sound off</button>
       <a class="navbtn" data-game href="#">Open the simulator →</a>
     </nav>
 
@@ -23,10 +24,11 @@
         <h1>How a bridge<br />holds you up</h1>
         <p class="lede">Every day, heavy trucks cross gaps of thin air. Nothing about it is magic — it is <b>forces</b>, flowing through steel and timber to the ground. Scroll to follow one <b><span data-n="truckT"></span> truck</b> across a <b>16 m</b> bridge, and see the numbers an engineer sees.</p>
         <div class="hero-stats">
-          <div><b data-n="truckKN"></b><span>truck weight</span></div>
+          <div><b data-n="heroKN"></b><span data-n="heroWhat">truck weight</span></div>
           <div><b>16 m</b><span>span</span></div>
-          <div><b data-n="chordPeak"></b><span>peak force in one member</span></div>
+          <div><b data-n="heroPeak"></b><span>peak force in one member</span></div>
         </div>
+        <div class="picker" id="picker" role="radiogroup" aria-label="Choose what drives across"><span>Try another vehicle:</span></div>
         <p class="note">Every number and colour on this page is computed live in your browser by the same structural engine that runs the <a data-game href="#">Span simulator</a>.</p>
       </div>
       <div class="hero-stage" id="heroStage"></div>
@@ -64,9 +66,11 @@
       <div class="chap-head"><span>Chapter 3</span><h2>Push and pull</h2></div>
       <div class="scrolly">
         <div class="steps">
+          <div class="step" data-step="predict"><h3>Your guess first</h3><p>The truck stops in the middle of the bridge. Which part is <b>squeezed the hardest</b>?</p><div class="quiz" data-quiz="chord"></div></div>
           <div class="step" data-step="colors"><h3>Every bar is pulled or pushed</h3><p>Pins can't bend, so each bar carries only an axial force: <b class="t-ten">tension</b> (pulled) or <b class="t-com">compression</b> (pushed).</p><p>With the truck in the middle, the <b class="t-com">top chord</b> is squeezed with <b data-n="midTop"></b> while the <b class="t-ten">road deck</b> below it is stretched. Together they act like the top and bottom of a beam.</p></div>
           <div class="step" data-step="drive"><h3>Now you drive</h3><p>Drag the slider and move the truck yourself. Forces flow differently with every metre — watch the end diagonals light up as the truck rolls on and off.</p><p>This is a live calculation: <b>stiffness matrix → displacements → forces</b>, solved every time you move it.</p></div>
           <div class="step" data-step="influence"><h3>The whole crossing in one chart</h3><p>Engineers call these <b>influence lines</b>: the force in one member for every truck position. The top chord peaks at <b data-n="infTop"></b> when the truck is centred; the end diagonal peaks earlier, at <b data-n="infDiag"></b>, as the truck mounts the bridge.</p><p>Design must cover the <b>worst</b> position for <b>every</b> member — the simulator checks hundreds of positions each time you edit.</p></div>
+          <div class="step" data-step="break"><h3>Now break it</h3><p><b>Click any member</b> in the diagram to remove it, then <b>send the truck</b>. This runs the full dynamic simulation — members really break when they are overloaded.</p><p>Try an end diagonal. Then try a single top-chord member. Is every bar equally important?</p><div class="break-ui"><button class="btn-s primary" id="breakGo">▶ Send the truck</button><button class="btn-s" id="breakReset">Reset bridge</button></div><p class="break-out" id="breakOut"></p></div>
         </div>
         <div class="stage"><div class="stage-inner" id="s3"></div></div>
       </div>
@@ -77,9 +81,11 @@
       <div class="chap-head"><span>Chapter 4</span><h2>Length is the enemy of a strut</h2></div>
       <div class="scrolly">
         <div class="steps">
+          <div class="step" data-step="guess4"><h3>Your guess first</h3><p>Take a steel bar that holds <b data-n="steelC1"></b> when it is <b>1 m</b> long. Make it <b>8 m</b> long and push on it. How much of that strength is left?</p><div class="quiz" data-quiz="buckle"></div></div>
           <div class="step" data-step="pull"><h3>Pulling is easy</h3><p>A 100 mm steel box section can hold <b data-n="steelT"></b> in tension. Make it 1 m long or 8 m long — <b>it doesn't matter</b>. Tension just stretches the steel until it yields.</p></div>
           <div class="step" data-step="push"><h3>Pushing is different</h3><p>Squeeze the same bar and it fails sideways — it <b>buckles</b>. At 1 m it carries <b data-n="steelC1"></b>; at 4 m only <b data-n="steelC4"></b>; at 8 m just <b data-n="steelC8"></b>.</p><p>Euler showed in 1757 that buckling strength falls with the <b>square of the length</b>. Timber, far less stiff than steel, suffers even sooner.</p></div>
-          <div class="step" data-step="rule"><h3>The design rule</h3><p>Keep compression members <b>short and stocky</b>; let long members work in tension. That's why bridges are full of triangles with short top chords — and why cables, which can only pull, can be so long and thin.</p></div>
+          <div class="step" data-step="rule"><h3>The design rule</h3><p>Keep compression members <b>short and stocky</b>; let long members work in tension. That's why bridges are full of triangles with short top chords — and why cables, which can only pull, can be so long and thin.</p>
+            <aside class="fieldnote"><div class="fn-tag">Field note · 1907</div><b>The Québec Bridge</b><p>On 29 August 1907 the partly built Québec Bridge collapsed into the St. Lawrence River, killing 75 workers. The investigation found that compression chords near the main pier had buckled: the bridge was heavier than its designers had assumed, and those members could not carry it. The rebuilt bridge still holds the record for the longest cantilever truss span — 549 m.</p></aside></div>
         </div>
         <div class="stage"><div class="stage-inner" id="s4"></div></div>
       </div>
@@ -92,7 +98,8 @@
         <div class="steps">
           <div class="step" data-step="shallow"><h3>A shallow truss strains</h3><p>Build our truss only 1 m deep and, with code load factors, the top chord must resist <b data-n="d1"></b>.</p><p>The truck creates a bending moment; the chords resist it as a pair of forces. The lever arm between them is the depth — <b>force ≈ moment ÷ depth</b>.</p></div>
           <div class="step" data-step="deep"><h3>Make it deeper</h3><p>At 5 m deep the same chord needs only <b data-n="d5"></b> — about a fifth. The bridge also stiffens: deflection falls from <b data-n="def1"></b> to about <b data-n="def5"></b>.</p></div>
-          <div class="step" data-step="trade"><h3>But nothing is free</h3><p>Deeper means longer diagonals and more material: cost rises from <b data-n="cost1"></b> to <b data-n="cost5"></b> here, and the end diagonals hardly change. Engineers hunt for the sweet spot — often a depth of about <b>1/8 to 1/10 of the span</b>.</p></div>
+          <div class="step" data-step="trade"><h3>But nothing is free</h3><p>Deeper means longer diagonals and more material: cost rises from <b data-n="cost1"></b> to <b data-n="cost5"></b> here, and the end diagonals hardly change. Engineers hunt for the sweet spot — often a depth of about <b>1/8 to 1/10 of the span</b>.</p>
+            <aside class="fieldnote"><div class="fn-tag">Field note · 1940</div><b>Tacoma Narrows</b><p>The first Tacoma Narrows Bridge had an 853 m main span stiffened by a girder only about 2.4 m deep — extremely slender. Four months after opening, a steady wind of around 64 km/h set the deck twisting until it tore apart. Nobody died, and every long-span bridge since has been checked for stiffness and wind, not just strength.</p></aside></div>
         </div>
         <div class="stage"><div class="stage-inner" id="s5"></div></div>
       </div>
@@ -103,6 +110,7 @@
       <div class="chap-head"><span>Chapter 6</span><h2>Engineers plan for worse than worst</h2></div>
       <div class="scrolly">
         <div class="steps">
+          <div class="step" data-step="guess6"><h3>Your guess first</h3><p>We'll drive the truck across a timber version of the bridge. Compared with the <b>biggest force the truck actually causes</b>, how much load would the busiest member take before it fails?</p><div class="quiz" data-quiz="margin"></div></div>
           <div class="step" data-step="peak"><h3>What really happens</h3><p>We drove the truck across a timber version of the bridge in the full dynamic simulation. The most loaded top chord peaked at <b data-n="sPeak"></b>.</p></div>
           <div class="step" data-step="ned"><h3>What we design for</h3><p>Codes don't trust a single test. They multiply the bridge's own weight by <b>1.35</b> and traffic by <b>1.5</b>, then take the worst truck position. Design force: <b data-n="sNEd"></b>.</p></div>
           <div class="step" data-step="nrd"><h3>What we allow the material to do</h3><p>Material strength is divided by a safety factor too — <b>1.25</b> for timber, which varies more than steel. Allowed resistance: <b data-n="sNRd"></b>, while it would actually fail at <b data-n="sNRk"></b>.</p><p>The gap between the bars is the margin that keeps people safe when trucks are overloaded, timber has a knot, or a winter is harsh.</p></div>
@@ -120,6 +128,18 @@
           <div class="step" data-step="you"><h3>Where you start</h3><p>In the Span simulator you'll build from <b>10 m to 48 m</b> — the territory of trusses, small arches and short cable bridges. The physics is the same all the way up to two-kilometre suspension spans.</p></div>
         </div>
         <div class="stage"><div class="stage-inner" id="s7"></div></div>
+      </div>
+    </section>
+
+    <section class="challenge" id="challenge">
+      <div class="chap-head"><span>Your turn</span><h2>Design the cheapest bridge that holds the truck</h2>
+        <p class="lede small">Same 16 m gap, same 26 t truck. Choose the material, depth and member sizes. The design checks update as you change anything; then run the real load test. Three stars: <b>code compliant</b>, <b>under $19,000</b>, <b>under $15,200</b>.</p></div>
+      <div class="ch-grid">
+        <div class="ch-controls" id="chControls"></div>
+        <div class="ch-view">
+          <div id="chBridge"></div>
+          <div class="ch-result" id="chResult"></div>
+        </div>
       </div>
     </section>
 

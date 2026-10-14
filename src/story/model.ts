@@ -4,7 +4,7 @@ import { LEVELS, type Level } from '../levels';
 import { analyse, solveCase, GAMMA_G, GAMMA_Q } from '../analysis';
 import { capacity, MATERIALS, propsOf, type MaterialId } from '../materials';
 import { Sim } from '../physics';
-import { VEHICLES } from '../vehicles';
+import { VEHICLES, type VehicleType } from '../vehicles';
 
 export const LEVEL: Level = LEVELS.find((l) => l.id === 'l3')!; // 16 m Quarry Road
 export const TRUCK = VEHICLES.hgv;
@@ -13,15 +13,14 @@ const g = 9.81;
 export interface Bridge { design: Design; deck: number[]; top: number[]; topChord: number[]; deckMembers: number[]; endDiag: number; midTop: number; midDeck: number }
 
 /** Warren truss over the 16 m gap */
-export function buildBridge(height = 2.5, web: [MaterialId, number] = ['steel', 2], chord: [MaterialId, number] = ['steel', 3]): Bridge {
+export function buildBridge(height = 2.5, web: [MaterialId, number] = ['steel', 2], chord: [MaterialId, number] = ['steel', 3], deckSec = 1, n = 8): Bridge {
   const d = new Design(LEVEL);
   const L = d.nodes[0], R = d.nodes[1];
-  const n = 8;
   const deck = [L];
-  for (let i = 1; i < n; i++) deck.push(d.addNode((16 * i) / n, 0));
+  for (let i = 1; i < n; i++) deck.push(d.addNode(+((16 * i) / n).toFixed(4), 0));
   deck.push(R);
   const deckMembers: number[] = [];
-  for (let i = 0; i < n; i++) deckMembers.push(d.addBeam(deck[i].id, deck[i + 1].id, 'deck', 1)!.id);
+  for (let i = 0; i < n; i++) deckMembers.push(d.addBeam(deck[i].id, deck[i + 1].id, 'deck', deckSec)!.id);
   const top = deck.slice(0, -1).map((p, i) => d.addNode((p.x + deck[i + 1].x) / 2, height));
   const topChord: number[] = [];
   let endDiag = -1;
@@ -33,32 +32,31 @@ export function buildBridge(height = 2.5, web: [MaterialId, number] = ['steel', 
   });
   return {
     design: d, deck: deck.map((x) => x.id), top: top.map((x) => x.id), topChord, deckMembers, endDiag,
-    midTop: topChord[Math.floor(topChord.length / 2)], midDeck: deckMembers[n / 2],
+    midTop: topChord[Math.floor(topChord.length / 2)], midDeck: deckMembers[Math.floor(n / 2)],
   };
 }
 
 /** axle loads (N) for a truck whose rear bumper is at x, distributed to deck joints */
-export function truckLoads(b: Bridge, rear: number) {
-  const d = b.design;
+export function truckLoads(b: Bridge, rear: number, V: VehicleType = TRUCK) {
   const loads = new Map<number, number>();
   const axles: { x: number; P: number }[] = [];
-  for (const ax of TRUCK.axles) {
+  const n = b.deck.length - 1, panel = 16 / n;
+  for (const ax of V.axles) {
     const x = rear + ax.x;
-    const P = ax.share * TRUCK.mass * g;
+    const P = ax.share * V.mass * g;
     axles.push({ x, P });
     if (x <= 0 || x >= 16) continue;
-    const i = Math.min(7, Math.floor(x / 2));
-    const t = (x - i * 2) / 2;
+    const i = Math.min(n - 1, Math.floor(x / panel));
+    const t = (x - i * panel) / panel;
     const a = b.deck[i], c = b.deck[i + 1];
     loads.set(a, (loads.get(a) ?? 0) + P * (1 - t));
     loads.set(c, (loads.get(c) ?? 0) + P * t);
   }
-  void d;
   return { loads, axles };
 }
 
-export function forcesAt(b: Bridge, rear: number | null, dead = true) {
-  const loads = rear === null ? new Map<number, number>() : truckLoads(b, rear).loads;
+export function forcesAt(b: Bridge, rear: number | null, dead = true, V: VehicleType = TRUCK) {
+  const loads = rear === null ? new Map<number, number>() : truckLoads(b, rear, V).loads;
   return solveCase(b.design.nodes, b.design.beams, loads, dead)!;
 }
 
@@ -87,11 +85,11 @@ export function selfWeightKN(b: Bridge) {
 }
 
 /** member force (kN) vs truck position for chosen members */
-export function influence(b: Bridge, ids: number[]) {
+export function influence(b: Bridge, ids: number[], V: VehicleType = TRUCK) {
   const out = new Map<number, [number, number][]>(ids.map((i) => [i, []]));
-  for (let rear = -TRUCK.length; rear <= 16.001; rear += 0.25) {
-    const f = forcesAt(b, rear).forces;
-    const front = rear + TRUCK.length;
+  for (let rear = -V.length; rear <= 16.001; rear += 0.25) {
+    const f = forcesAt(b, rear, true, V).forces;
+    const front = rear + V.length;
     for (const id of ids) out.get(id)!.push([front, f.get(id)! / 1000]);
   }
   return out;
