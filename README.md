@@ -4,6 +4,9 @@ Design truss, arch and suspension bridges with real materials and section sizes,
 
 ## Play
 
+**Live:** https://span-bridge-simulator.vercel.app (data story: https://span-bridge-simulator.vercel.app/story.html)
+
+
 - **Quickest:** download the repo, keep `Play Span.html` and `Span Tutorial.mp4` together, and open `Play Span.html` in a browser.
 - **From source:** `npm install` then `npm run dev` → http://localhost:5199
 
