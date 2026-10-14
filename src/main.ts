@@ -9,6 +9,7 @@ import { VEHICLES, VEHICLE_ORDER, tonnes, type VehicleKind } from './vehicles';
 import { audio } from './audio';
 import { Tutorial, type Seg, type TutStep } from './tutorial';
 import { GUIDE, VIDEO_SRC } from './walkthrough';
+import { diagnoseTest, improvementTips, checkHint, type TestInfo, type Diagnosis } from './hints';
 import CHAPTERS from './video-chapters.json';
 
 type Tool = 'select' | MaterialId | 'move' | 'delete' | 'drop';
@@ -59,6 +60,8 @@ let outcomeAt = 0;
 let time = 0;
 let acc = 0;
 let lastTest: 'none' | 'pass' | 'fail' = 'none';
+let testInfo: TestInfo = { passed: false, firstBreak: null, breaks: 0, lost: false, timedOut: false };
+const fails: Record<string, number> = store.get('fails', {});
 audio.muted = store.get('muted', false);
 
 const pg = {
@@ -312,13 +315,21 @@ function renderChecks() {
   let html = '';
   if (!analysis) html = checkRow(null, 'Analysis', 'pending');
   else {
-    for (const c of analysis.checks) html += checkRow(c.ok, c.label, c.value, c.detail);
+    for (const c of analysis.checks) {
+      const h = c.ok ? null : checkHint(design, analysis, c.id, level);
+      html += checkRow(c.ok, c.label, c.value, h ? `<span class="hint">💡 ${h.text}</span>${h.beams.length || h.node !== null ? ` <a class="hint-show" data-hint="${c.id}">show</a>` : ''}` : c.detail);
+    }
   }
   if (!level.playground) {
     html += checkRow(cost <= level.budget, 'Budget', `${fmt(cost)} / ${fmt(level.budget)}`, cost <= level.budget * 0.8 ? 'Efficient — under 80% of budget' : '');
     html += checkRow(lastTest === 'none' ? null : lastTest === 'pass', 'Load test', lastTest === 'none' ? 'not run' : lastTest === 'pass' ? 'passed' : 'failed', 'Real traffic, real dynamics');
   }
   el.innerHTML = html;
+  el.querySelectorAll<HTMLElement>('[data-hint]').forEach((a) => a.addEventListener('click', () => {
+    if (!analysis || sim) return;
+    const h = checkHint(design, analysis, a.dataset.hint!, level);
+    if (h) focusOn(h.beams, h.node);
+  }));
   if (!analysis) { pill.className = 'pill wait'; pill.textContent = '…'; return; }
   const issues = analysis.checks.filter((c) => !c.ok).length + (!level.playground && cost > level.budget ? 1 : 0);
   pill.className = 'pill ' + (issues ? 'bad' : 'ok');
@@ -621,6 +632,7 @@ function startSim() {
   if (pg.quake && level.playground) sim.quake = { amp: pg.amp, freq: pg.freq };
   console.info(`[span] sim built: ${sim.particles.length} particles, ${sim.members.length} members in ${(performance.now() - t0).toFixed(2)} ms`);
   simWall = performance.now();
+  testInfo = { passed: false, firstBreak: null, breaks: 0, lost: false, timedOut: false };
   acc = 0;
   paused = false;
   resultShown = false;
@@ -658,9 +670,17 @@ function stopSim() {
 function handleEvents() {
   if (!sim) return;
   for (const e of sim.events) {
-    if (e.type === 'break') { R.burst(e.x, e.y, e.mat); audio.snap(e.mat); }
+    if (e.type === 'break') {
+      R.burst(e.x, e.y, e.mat);
+      audio.snap(e.mat);
+      testInfo.breaks++;
+      if (!testInfo.firstBreak && e.designId !== undefined && e.designId >= 0) {
+        testInfo.firstBreak = { designId: e.designId, force: e.force ?? 0, mat: e.mat };
+        if (!level.playground) toast(`${e.mat ? MATERIALS[e.mat].name : 'A'} member ${(e.force ?? 0) < 0 ? 'failed in compression' : 'snapped in tension'} — tips will follow`);
+      }
+    }
     else if (e.type === 'splash') { R.splash(e.x, e.y); audio.splash(false); }
-    else if (e.type === 'lost') { R.splash(e.x, level.waterY, true); audio.splash(true); }
+    else if (e.type === 'lost') { R.splash(e.x, level.waterY, true); audio.splash(true); testInfo.lost = true; }
     else if (e.type === 'arrive') audio.click();
   }
   sim.events.length = 0;
@@ -668,6 +688,38 @@ function handleEvents() {
 
 // ---------------- results ----------------
 const STAR = '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>';
+
+/** select and frame the members (or joint) a hint is about */
+function focusOn(beams: number[], node: number | null) {
+  const pts: Vec[] = [];
+  for (const id of beams) {
+    const b = design.beams.find((x) => x.id === id);
+    if (b) pts.push(design.node(b.a)!, design.node(b.b)!);
+  }
+  if (node !== null) { const n = design.node(node); if (n) pts.push(n); }
+  if (!pts.length) return;
+  selected = new Set(beams.filter((id) => design.beams.some((b) => b.id === id)));
+  tool = 'select';
+  view = 'util';
+  const x0 = Math.min(...pts.map((p) => p.x)), x1 = Math.max(...pts.map((p) => p.x));
+  const y0 = Math.min(...pts.map((p) => p.y)), y1 = Math.max(...pts.map((p) => p.y));
+  const availW = R.W - R.insets.left - R.insets.right, availH = R.H - R.insets.top - R.insets.bottom;
+  const z = Math.max(fitZoom, Math.min(fitZoom * 2.2, availW / (x1 - x0 + 10), availH / (y1 - y0 + 7)));
+  R.cam.zoom = z;
+  R.cam.x = (x0 + x1) / 2 - ((R.insets.left - R.insets.right) / 2) / z;
+  R.cam.y = (y0 + y1) / 2 + ((R.insets.top - R.insets.bottom) / 2) / z;
+  syncHud();
+  renderSections();
+  renderInspector();
+}
+let pendingFocus: { beams: number[]; node: number | null } | null = null;
+
+function diagHtml(d: Diagnosis, kind: 'fail' | 'improve') {
+  pendingFocus = d.focusBeams.length || d.focusNode !== null ? { beams: d.focusBeams, node: d.focusNode } : null;
+  return `<div class="diag ${kind}"><div class="diag-head"><span class="diag-ic">${d.icon}</span><div><small>${kind === 'fail' ? 'What went wrong' : 'How to earn more stars'}</small><b>${d.title}</b></div></div>
+    <p>${d.why}</p><ul>${d.tips.map((t) => `<li>${t}</li>`).join('')}</ul>
+    ${pendingFocus ? `<button class="btn" data-act="showme">🔍 Show me ${d.focusNode !== null && !d.focusBeams.length ? 'the joint' : d.focusBeams.length > 1 ? 'these members' : 'the member'}</button>` : ''}</div>`;
+}
 
 function showResult() {
   if (!sim) return;
@@ -682,6 +734,17 @@ function showResult() {
   const s2 = s1 && code;
   const s3 = s2 && cost <= level.budget * 0.8;
   const stars = s3 ? 3 : s2 ? 2 : s1 ? 1 : 0;
+  testInfo.passed = passedTest;
+  testInfo.timedOut = !passedTest && !testInfo.lost && !testInfo.firstBreak;
+  if (!s1) fails[level.id] = (fails[level.id] ?? 0) + 1;
+  else fails[level.id] = 0;
+  store.set('fails', fails);
+  let diag = '';
+  if (!passedTest || !structural) diag = diagHtml(diagnoseTest(level, design, an, testInfo, fails[level.id] ?? 1), 'fail');
+  else if (!s3) {
+    const imp = improvementTips(level, design, an);
+    if (imp) diag = diagHtml(imp, 'improve');
+  }
   if (stars) {
     const prev = progress[level.id];
     progress[level.id] = { stars: Math.max(prev?.stars ?? 0, stars), best: Math.min(prev?.best ?? Infinity, cost) };
@@ -704,6 +767,7 @@ function showResult() {
     </div>
     <div class="facts"><div><b>${fmt(cost)}</b><span>Cost</span></div><div><b>${pct(sim.maxRatio)}</b><span>Peak stress</span></div>
       <div><b>${(sim.maxDeflection * 1000).toFixed(0)} mm</b><span>Max deflection</span></div><div><b>${pct(an.maxUtil)}</b><span>Max ULS util.</span></div></div>
+    ${diag}
     <div class="btns center"><button class="btn" data-act="edit">Back to design</button><button class="btn" data-act="replay">Replay</button>
     ${!passedTest ? '<button class="btn" data-act="watch">Keep watching</button>' : ''}
     ${hasNext && s1 ? '<button class="btn primary" data-act="next">Next project →</button>' : ''}</div></div>`;
@@ -720,6 +784,7 @@ $('modal').addEventListener('click', (e) => {
   else if (act === 'replay') { stopSim(); startSim(); }
   else if (act === 'next') { const i = LEVELS.findIndex((l) => l.id === level.id); loadLevel(LEVELS[i + 1]); }
   else if (act === 'watch') $('modal').classList.add('hidden');
+  else if (act === 'showme' && pendingFocus) { const f = pendingFocus; stopSim(); focusOn(f.beams, f.node); toast('Highlighted in blue — the inspector shows its numbers'); }
 });
 
 function openLevels() {

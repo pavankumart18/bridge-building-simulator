@@ -344,3 +344,5 @@ h1 { font-size: clamp(44px, 6vw, 84px); line-height: 0.98; letter-spacing: -0.04
   .hero-stats b { font-size: 26px; }
   .bzoom button { width: 34px; height: 34px; }
 }
+
+.ch-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--page); color: var(--ink-2); font-size: 15px; border-left: 4px solid #f5a524; }

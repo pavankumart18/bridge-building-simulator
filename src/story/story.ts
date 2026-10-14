@@ -402,6 +402,23 @@ function chControls() {
   $('chTest').addEventListener('click', runChallengeTest);
   $('chShare').addEventListener('click', shareCard);
 }
+function chHint(an: ReturnType<typeof analyse>, crit: 'deck' | 'chord' | 'web' | null, cost: number, uls: boolean, sls: boolean) {
+  const M = MATERIALS[ch.mat];
+  if (!uls) {
+    const r = an.criticalBeam !== null ? an.members.get(an.criticalBeam) : null;
+    if (crit === 'chord') return r?.mode === 'buckling'
+      ? `The top chord buckles. ${ch.chord < M.sections.length - 1 ? 'Pick a bigger top chord' : 'Switch to steel'}, or make the truss deeper so the chord force drops.`
+      : `The top chord is overloaded. Pick a bigger top chord or make the truss deeper.`;
+    if (crit === 'web') return `The diagonals are overloaded. ${ch.web < M.sections.length - 1 ? 'Pick bigger diagonals' : 'Switch to steel'} — the end diagonals carry the most.`;
+    if (crit === 'deck') return 'The deck itself is overloaded — try more panels (shorter deck spans) or the steel deck.';
+    return 'Something is over capacity — make the members bigger or the truss deeper.';
+  }
+  if (!sls) return 'Strong enough but too bendy. A deeper truss is the cheapest way to add stiffness.';
+  if (cost > BUDGET) return `Safe but ${usd(cost - BUDGET)} over budget. Timber is cheaper than steel, fewer panels means fewer $150 joints, and lightly used members can be smaller.`;
+  if (cost > STAR3) return `${usd(cost - STAR3)} away from three stars. Try 6 panels (fewer joints) and trim whichever section has the most spare capacity.`;
+  return 'Three stars! Now run the load test and download your share card.';
+}
+
 function chUpdate(rebuildControls: boolean) {
   chSim = null;
   chTest = 'none';
@@ -425,6 +442,7 @@ function chUpdate(rebuildControls: boolean) {
       <div class="${sls ? 'ok' : 'bad'}"><b>${(an.deflection * 1000).toFixed(0)} mm</b><span>deflection · limit ${(an.deflectionLimit * 1000).toFixed(0)} mm</span></div>
       <div class="${cost <= BUDGET ? 'ok' : 'bad'}"><b>${usd(cost)}</b><span>cost · ★★★ under ${usd(STAR3)}</span></div>
     </div>
+    <p class="ch-hint">💡 ${chHint(an, crit ? (crit.mat === 'deck' ? 'deck' : chBridge.topChord.includes(crit.id) ? 'chord' : 'web') : null, cost, uls, sls)}</p>
     <p class="ch-test" id="chTestOut">Load test not run yet.</p>`;
   if (rebuildControls) chControls();
   else {
@@ -437,19 +455,23 @@ function chUpdate(rebuildControls: boolean) {
 function runChallengeTest() {
   const sim = new Sim(LEVEL, chBridge.design.nodes, chBridge.design.beams);
   chSim = sim;
+  let firstBreak: { id: number; force: number } | null = null;
   audio.start();
   $('chTestOut').textContent = 'Truck on its way…';
   const loop = () => {
     if (chSim !== sim) return;
     sim.step();
-    for (const e of sim.events) if (e.type === 'break') audio.snap(e.mat);
+    for (const e of sim.events) if (e.type === 'break') {
+      audio.snap(e.mat);
+      if (!firstBreak && e.designId !== undefined) firstBreak = { id: e.designId, force: e.force ?? 0 };
+    }
     sim.events.length = 0;
     chView.drawSim(sim, chBridge, new Set(), 400000);
     if (sim.outcome !== 'running' || sim.time > 20) {
       chTest = sim.outcome === 'success' ? 'pass' : 'fail';
       $('chTestOut').innerHTML = chTest === 'pass'
         ? `<b class="okc">✓ Load test passed.</b> Peak member stress ${Math.round(sim.maxRatio * 100)}% of real capacity.`
-        : `<b class="badc">✗ The bridge failed the load test.</b> Make the red members bigger or the truss deeper.`;
+        : `<b class="badc">✗ The bridge failed the load test.</b> ${firstBreak ? `The first member to go was ${chBridge.topChord.includes(firstBreak.id) ? 'a top-chord member' : chBridge.deckMembers.includes(firstBreak.id) ? 'a deck panel' : 'a diagonal'}, ${firstBreak.force < 0 ? 'crushed or buckled under compression' : 'snapped in tension'}. 💡 ${firstBreak.force < 0 ? 'Bigger section or a deeper truss.' : 'A bigger section — tension capacity is strength × area.'}` : 'Make the red members bigger or the truss deeper.'}`;
       chTest === 'pass' ? audio.success() : audio.fail();
       chSim = null;
       return;

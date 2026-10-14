@@ -72,6 +72,8 @@ export interface SimEvent {
   x: number; y: number;
   mat?: MaterialId | null;
   force?: number;
+  designId?: number;
+  ratio?: number;
 }
 
 interface Segment { ax: number; ay: number; bx: number; by: number }
@@ -423,7 +425,7 @@ export class Sim {
         force: 0, ratio: 0, peak: 0, damping: 30, designId: m.designId,
       });
     }
-    this.events.push({ type: 'break', x: mx, y: my, mat: m.mat, force: m.force });
+    this.events.push({ type: 'break', x: mx, y: my, mat: m.mat, force: m.force, designId: m.designId, ratio: m.ratio });
   }
 
   // ---------------- contacts ----------------

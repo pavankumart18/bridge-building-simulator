@@ -18,6 +18,7 @@ Open **`Bridge Story.html`** (or `/story.html` on the dev server, or **Story** i
 - **Materials & sections:** glulam GL24h timber, S355 steel hollow sections, spiral-strand cable and three deck types, with published properties. Compression members buckle (Rankine–Gordon / Euler).
 - **Live static analysis:** direct stiffness method with a moving-load envelope (every design vehicle, both directions), tension-only cables and geometric stiffness for cable-supported decks. Checks: stability, deck continuity, strength (1.35G + 1.5Q), deflection (L/n), gradient, budget.
 - **Dynamic load test:** XPBD simulation with multi-axle vehicles and suspension; members break at their characteristic resistance.
+- **Failure hints:** when a test fails the game diagnoses why (buckled strut, snapped tie, mechanism, deck gap, too steep, stuck traffic), suggests specific fixes that escalate with repeated failures, and a *Show me* button zooms to the culprit member. Failing design checks carry inline hints too.
 - **9 projects** with client briefs, design traffic, clearance zones and three-star scoring, plus a **Playground** with two-way traffic, manual driving, dropped loads and earthquakes.
 
 ## Scripts
@@ -31,4 +32,5 @@ Open **`Bridge Story.html`** (or `/story.html` on the dev server, or **Story** i
 | `npm run test:playground` | Playground smoke test (traffic, driving, loads, earthquake) |
 | `npx tsx scripts/story-numbers.ts` | Prints every number the data story quotes |
 | `npx tsx scripts/challenge-search.ts` | Searches the story's design challenge for the cheapest compliant bridges |
+| `npx tsx scripts/hint-check.ts <dir>` | Loads weak bridges into the built game and checks the failure hints |
 | `npm run video` | Re-records `Span Tutorial.mp4` and its chapters (needs dev server + Google Chrome) |

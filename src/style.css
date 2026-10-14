@@ -338,3 +338,18 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 5px; background: r
 
 .ghost, .project { white-space: nowrap; }
 @media (max-width: 1560px) { .brand small { display: none; } }
+
+/* ---------- hints ---------- */
+.diag { text-align: left; margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: rgba(245, 165, 36, 0.1); border: 1px solid rgba(245, 165, 36, 0.35); }
+.diag.improve { background: rgba(90, 170, 255, 0.1); border-color: rgba(90, 170, 255, 0.35); }
+.diag-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.diag-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 18px; font-weight: 800; background: rgba(245, 165, 36, 0.25); color: #ffd99a; flex: none; }
+.diag.improve .diag-ic { background: rgba(90, 170, 255, 0.25); color: #cfe3ff; }
+.diag-head small { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; }
+.diag-head b { font-size: 15.5px; }
+.diag p { margin: 0 0 8px; color: #d7deea; font-size: 13.5px; line-height: 1.5; }
+.diag ul { margin: 0 0 10px; padding-left: 18px; color: #e6ebf3; font-size: 13.5px; line-height: 1.55; }
+.diag li { margin-bottom: 4px; }
+.diag .btn { width: 100%; }
+.check .hint { color: #ffd99a; }
+.hint-show { color: var(--blue); cursor: pointer; font-weight: 700; text-decoration: underline; }
