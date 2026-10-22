@@ -32,6 +32,12 @@ async function runLevel(id: string, shotAt: number[]) {
   await p.screenshot({ path: `${out}/x-${id}-brief.jpg`, quality: 60, type: 'jpeg' });
   await p.click('#briefCard .btn.primary');
   await p.screenshot({ path: `${out}/x-${id}-design.jpg`, quality: 60, type: 'jpeg' });
+  if (process.env.ZOOM) {
+    for (let i = 0; i < 3; i++) await p.keyboard.press('Equal');
+    await p.waitForTimeout(400);
+    await p.screenshot({ path: `${out}/x-${id}-zoom.jpg`, quality: 70, type: 'jpeg' });
+    await p.keyboard.press('0');
+  }
   const checks = await p.$$eval('.check', (e) => e.map((x) => x.textContent!.replace(/\s+/g, ' ').trim().slice(0, 40)));
   await p.click('#playBtn');
   const ts = Date.now();

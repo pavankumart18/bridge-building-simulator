@@ -27,6 +27,10 @@ Open **`Bridge Story.html`** (or `/story.html` on the dev server, or **Story** i
 - **Expert tier:** *Timber Trail* (timber only), *Heavy Haul* (72 t seven-axle transporter), *Seismic Valley* (an earthquake strikes mid-test; braced tower on a rock spur), *Twin Pier Viaduct* (three spans, truck convoy), *Harbour Cable-Stay* (central tower, shipping channels) and the *Estuary Crossing* finale. Seismic projects add a code load case (elastic plateau 2.5·ag, G ± E_h ± 0.3·E_v) and horizontal + vertical ground motion in the live test. Every Expert and Landmark budget is calibrated from a verified reference design (`scripts/level-solutions.ts`), which is not shipped — players get no worked solution.
 - **Landmarks tier:** real bridges scaled to fit, each with a fact box in its brief — *Chenab Arch* (world's highest railway bridge, a deck arch over a Himalayan gorge with trains and an earthquake), *Tower Bridge* (stone towers, the Pool of London channel and double-decker buses), *Hell Gate Arch* (New York's red railway through-arch over the East River) and *Golden Gate* (an 80 m suspension crossing between orange towers on a seismic coast). New vehicles: a 96 t two-car train and a London double-decker.
 
+## Visuals
+
+Members are drawn as real sections — shaded steel box sections, glulam timber with laminations and stranded cables — joined by bolted gusset plates, on bearings and concrete abutments. Decks show the girder or slab face, asphalt, railings and street lamps. Landmark projects get place-specific scenery: Himalayan ranges (Chenab), the London skyline with the Shard, Gherkin and St Paul's and stone quays (Tower Bridge, with its gothic towers and walkways), the Manhattan skyline (Hell Gate, painted red) and the Marin headlands with fog (Golden Gate's orange art-deco towers). Utilisation and Forces views keep the flat, readable colours.
+
 ## Scripts
 
 | Command | Purpose |

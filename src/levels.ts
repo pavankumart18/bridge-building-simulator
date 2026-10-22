@@ -59,7 +59,7 @@ export interface Level {
   noBuild: Zone[];
   boats: boolean;
   highwayY: number | null;
-  scenery: { trees: number; houses: boolean; seed: number };
+  scenery: { trees: number; houses: boolean; seed: number; theme?: 'default' | 'himalaya' | 'london' | 'nyc' | 'sf'; paint?: string };
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   playground?: boolean;
   seismic?: Seismic;
@@ -123,6 +123,7 @@ interface Opts {
   deflection?: number; gradient?: number;
   noBuild?: Zone[]; boats?: boolean; highwayY?: number; trees?: number; houses?: boolean;
   lossY?: number; playground?: boolean; seismic?: Seismic; tier?: Tier; landmark?: Landmark;
+  theme?: 'default' | 'himalaya' | 'london' | 'nyc' | 'sf'; paint?: string;
 }
 
 function site(o: Opts): Level {
@@ -147,7 +148,7 @@ function site(o: Opts): Level {
     noBuild: o.noBuild ?? [],
     boats: o.boats ?? false,
     highwayY: o.highwayY ?? null,
-    scenery: { trees: o.trees ?? 6, houses: o.houses ?? false, seed: o.seed },
+    scenery: { trees: o.trees ?? 6, houses: o.houses ?? false, seed: o.seed, theme: o.theme, paint: o.paint },
     bounds: { minX: -6, maxX: o.gap + 6, minY: o.minY ?? waterY + 0.5, maxY: o.maxY ?? Math.max(leftY, rightY) + 12 },
     playground: o.playground,
     seismic: o.seismic,
@@ -234,7 +235,7 @@ export const LEVELS: Level[] = [
     brief: 'A 44 m gorge with towers already built on each rim. Hang a deck from cables — they are strong, light and only pull.',
     lesson: 'In a suspension or cable-stayed bridge the deck is hung from tension members; the towers take the compression and backstays balance the pull.',
     hint: 'Run stays from the tower tops to deck joints. Tie the towers back to the rear anchors so they do not topple inward.',
-    gap: 44, budget: 60000, seed: 71, trees: 12, deflection: 500, maxY: 18, waterY: -9,
+    gap: 44, theme: 'himalaya', budget: 60000, seed: 71, trees: 12, deflection: 500, maxY: 18, waterY: -9,
     extraAnchors: [
       { x: -1.5, y: 14, pylonTo: 0 }, { x: 45.5, y: 14, pylonTo: 0 },
       { x: -11, y: 0 }, { x: 55, y: 0 },
@@ -296,7 +297,7 @@ export const LEVELS: Level[] = [
     brief: 'A 36 m valley on an active fault, with a rock spur rising 10 m below road level in the middle. During the load test an earthquake will shake the ground while traffic is on the bridge. The code also asks for a sideways seismic force on the bridge\'s own weight.',
     lesson: 'Earthquakes push sideways. Mass high up on a slender support swings like a pendulum, so tall props must be braced into triangles, and lighter bridges attract smaller seismic forces (F = m·a).',
     hint: 'Either span the whole valley with a deep truss, or build a braced tower on the spur — two legs tied with diagonals in every panel — and span to it from each bank.',
-    gap: 36, waterY: -18, minY: -17, budget: 44500, seed: 139, trees: 8, maxY: 14,
+    gap: 36, waterY: -18, minY: -17, theme: 'himalaya', budget: 44500, seed: 139, trees: 8, maxY: 14,
     extraTerrain: [pillar(18, -10, 1.6, 13)],
     extraAnchors: [{ x: 17, y: -10 }, { x: 19, y: -10 }, { x: -1, y: -5 }, { x: 37, y: -5 }],
     seismic: { ag: 0.35, at: 3, dur: 11, amp: 0.065, freq: 1.5 },
@@ -351,7 +352,7 @@ export const LEVELS: Level[] = [
     brief: 'Carry a railway across a deep Himalayan gorge in the highest seismic zone. It is a single-track line: one train crosses each way, and an earthquake will strike while the first one is on the bridge. The walls of the gorge are solid rock: spring an arch from them, or prove a truss is better.',
     lesson: 'An arch carries load in compression and pushes its thrust into the rock at each end — ideal across a deep gorge where piers would be impossibly tall. The deck sits on posts (spandrel columns) standing on the arch, and diagonal bracing stops the arch from folding when a heavy train is on one half.',
     hint: 'Spring an arch from the low wall anchors, rising to just below the deck at mid-span. Stand posts on it every few metres, add diagonals between posts and deck, and keep the arch members stocky — they are long struts.',
-    gap: 60, waterY: -30, minY: -28, maxY: 8, budget: 168500, seed: 211, trees: 10,
+    gap: 60, waterY: -30, minY: -28, maxY: 8, theme: 'himalaya', budget: 168500, seed: 211, trees: 10,
     extraAnchors: [{ x: -1.5, y: -16 }, { x: 61.5, y: -16 }, { x: -1, y: -8 }, { x: 61, y: -8 }],
     seismic: { ag: 0.36, at: 4, dur: 10, amp: 0.02, freq: 1.4 },
     vehicles: [{ kind: 'train', delay: 0 }, { kind: 'train', delay: 13, dir: -1 }],
@@ -371,7 +372,7 @@ export const LEVELS: Level[] = [
     brief: 'Two stone towers stand on river piers. Ships need the channel between them kept clear, and London\'s double-decker buses must cross. In this version the central span is fixed rather than lifting, so nothing may sit below it.',
     lesson: 'Tower Bridge mixes two systems: the side spans hang from suspension chains, while the central span is a bascule (a counterweighted lifting leaf). The high-level walkways are not just for people — they tie the towers together against the pull of the chains.',
     hint: 'Hang the deck from the tower tops with cables, or prop it from the piers and span between them with trusses above the road. The hatched channel under the central span must stay empty.',
-    gap: 56, waterY: -7, maxY: 18, budget: 67000, seed: 223, trees: 6, houses: true, boats: true,
+    gap: 56, waterY: -7, maxY: 18, theme: 'london', budget: 67000, seed: 223, trees: 6, houses: true, boats: true,
     extraTerrain: [pillar(18, -1.5, 1.8, 41), pillar(38, -1.5, 1.8, 43)],
     extraAnchors: [
       { x: 17, y: -1.5 }, { x: 19, y: -1.5 }, { x: 37, y: -1.5 }, { x: 39, y: -1.5 },
@@ -395,7 +396,7 @@ export const LEVELS: Level[] = [
     brief: 'Carry a busy railway over the East River in New York. The whole river must stay open to shipping, so nothing can go below the track — the structure has to rise above it. Two heavy trains cross, one in each direction, one after the other.',
     lesson: 'In a through arch the arch rises above the deck and the deck hangs from it. The deck doubles as a tie: it pulls the two arch feet together, so the arch\'s outward thrust never reaches the banks. Stiffening diagonals between arch and deck stop it buckling under one-sided loads.',
     hint: 'Build an arched top chord above the track — highest at mid-span — with posts and diagonals down to the deck. Make the arch members stocky: they carry the most compression.',
-    gap: 60, waterY: -8, maxY: 18, budget: 138500, seed: 233, trees: 6, houses: true, boats: true,
+    gap: 60, waterY: -8, maxY: 18, theme: 'nyc', paint: '#b0352c', budget: 138500, seed: 233, trees: 6, houses: true, boats: true,
     noBuild: [{ x0: 3, y0: -8, x1: 57, y1: -0.6, label: 'East River navigation' }],
     vehicles: [{ kind: 'train', delay: 0 }, { kind: 'train', delay: 13, dir: -1 }],
     landmark: {
@@ -414,7 +415,7 @@ export const LEVELS: Level[] = [
     brief: 'The grand finale. Two orange towers rise from piers at the mouth of the bay, and the shipping channel between them must stay clear. Hang an 80 m crossing from cables while trucks, buses and cars cross — on a coast where the San Andreas fault can shake it at any moment.',
     lesson: 'A suspension bridge drapes a main cable over its towers; vertical hangers carry the deck to it. The cable takes a curved shape that keeps it in pure tension. On its own a hanging deck is floppy, so real bridges add a stiffening truss under the road.',
     hint: 'Run a main cable from tower top to tower top, sagging to a few metres above the road at mid-span, with a hanger at every deck joint. Support the side spans from the piers and banks, and stiffen the deck where it bounces.',
-    gap: 80, waterY: -9, maxY: 24, budget: 166500, seed: 241, trees: 10, houses: true, boats: true, deflection: 500,
+    gap: 80, waterY: -9, maxY: 24, theme: 'sf', paint: '#c0442c', budget: 166500, seed: 241, trees: 10, houses: true, boats: true, deflection: 500,
     extraTerrain: [pillar(14, -1.5, 1.6, 47), pillar(66, -1.5, 1.6, 53)],
     extraAnchors: [
       { x: 13, y: -1.5 }, { x: 15, y: -1.5 }, { x: 65, y: -1.5 }, { x: 67, y: -1.5 },

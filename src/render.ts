@@ -4,6 +4,7 @@ import type { Design } from './design';
 import type { AnalysisResult } from './analysis';
 import type { Sim } from './physics';
 import { VEHICLES, type VehicleKind } from './vehicles';
+import { PALETTES, drawBackdrop, type Palette, type Theme } from './scenery';
 
 export interface Camera { x: number; y: number; zoom: number }
 export interface Insets { left: number; right: number; top: number; bottom: number }
@@ -97,6 +98,9 @@ export class Renderer {
   private trees: Tree[] = [];
   private houses: House[] = [];
   private sceneFor = '';
+  private pal: Palette = PALETTES.default;
+  private theme: Theme = 'default';
+  private masonryPattern: CanvasPattern | null = null;
 
   constructor(public canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -160,6 +164,23 @@ export class Renderer {
     return this.ctx.createPattern(c, 'repeat');
   }
 
+  private makeMasonryPattern() {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 64;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#6f6a62';
+    g.fillRect(0, 0, 128, 64);
+    for (let row = 0; row < 4; row++) for (let col = -1; col < 4; col++) {
+      const x = col * 40 + (row % 2) * 20, y = row * 16;
+      const k = hash(row * 13 + col * 7 + 3);
+      g.fillStyle = `rgb(${150 + k * 30},${142 + k * 26},${128 + k * 22})`;
+      g.fillRect(x + 1.5, y + 1.5, 37, 13);
+      g.fillStyle = 'rgba(255,255,255,0.08)';
+      g.fillRect(x + 1.5, y + 1.5, 37, 2);
+    }
+    return this.ctx.createPattern(c, 'repeat');
+  }
+
   private buildScenery(level: Level) {
     if (this.sceneFor === level.id) return;
     this.sceneFor = level.id;
@@ -188,6 +209,9 @@ export class Renderer {
   draw(level: Level, design: Design, sim: Sim | null, ov: Overlay, dt: number) {
     const { ctx, dpr } = this;
     this.buildScenery(level);
+    this.theme = level.scenery.theme ?? 'default';
+    this.pal = PALETTES[this.theme];
+    this.steelPaint = level.scenery.paint ?? MATERIALS.steel.color;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawBackground(level, ov.time);
 
@@ -219,7 +243,7 @@ export class Renderer {
     else this.drawDesign(design, ov);
     ctx.save();
     ctx.translate(gx, gy);
-    this.drawAnchors(level);
+    this.drawAnchors(level, ov.mode === 'build');
     ctx.restore();
     if (sim) {
       this.drawSimVehicles(sim, 1, ov);
@@ -239,6 +263,11 @@ export class Renderer {
 
     // screen-space labels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const vg = ctx.createRadialGradient(this.W / 2, this.H / 2, Math.min(this.W, this.H) * 0.45, this.W / 2, this.H / 2, Math.max(this.W, this.H) * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(8,12,24,0.22)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, this.W, this.H);
     if (ov.labels && ov.view !== 'material') this.drawForceLabels(design, sim, ov);
     if (ov.preview) {
       const p = ov.preview;
@@ -292,9 +321,10 @@ export class Renderer {
     const { ctx, W, H } = this;
     const horizon = this.toScreen(0, Math.max(level.waterY, level.highwayY ?? -99)).y;
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#4f9ee0');
-    g.addColorStop(Math.max(0.05, Math.min(0.95, horizon / H)) * 0.85, '#bfe0f5');
-    g.addColorStop(1, '#f3e6cf');
+    const [s0, s1, s2] = this.pal.sky;
+    g.addColorStop(0, s0);
+    g.addColorStop(Math.max(0.05, Math.min(0.95, horizon / H)) * 0.85, s1);
+    g.addColorStop(1, s2);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
@@ -314,9 +344,14 @@ export class Renderer {
       x -= 200;
       const y = H * (0.06 + hash(i * 1.7) * 0.24);
       const s = 0.7 + hash(i * 2.9) * 0.9;
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      const cg = ctx.createLinearGradient(0, y - 24 * s, 0, y + 18 * s);
+      cg.addColorStop(0, 'rgba(255,255,255,0.92)');
+      cg.addColorStop(0.6, 'rgba(244,247,250,0.85)');
+      cg.addColorStop(1, 'rgba(176,192,208,0.7)');
+      ctx.fillStyle = cg;
       ctx.beginPath();
       for (let k = 0; k < 5; k++) ctx.ellipse(x + k * 26 * s, y + Math.sin(k * 1.7) * 5 * s, 30 * s, 16 * s + hash(i + k) * 8 * s, 0, 0, Math.PI * 2);
+      for (let k = 0; k < 3; k++) ctx.ellipse(x + 20 * s + k * 30 * s, y - 12 * s - hash(i * 7 + k) * 8 * s, 22 * s, 16 * s, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -338,6 +373,11 @@ export class Renderer {
       { f: 0.3, h: 18, col: '#8fb0c4', scale: 0.04, base: 1 },
       { f: 0.55, h: 10, col: '#6f9a86', scale: 0.07, base: -1 },
     ];
+    const view = { W, H, camX: this.cam.x, camY: this.cam.y, zoom: this.cam.zoom };
+    if (this.theme !== 'default') {
+      drawBackdrop(ctx, this.theme, view, level.waterY, level.scenery.seed, Math.max(level.anchors[0].y, level.anchors[1].y));
+      layers.splice(0, this.theme === 'himalaya' ? 3 : 2);
+    }
     for (const L of layers) {
       const z = this.cam.zoom * L.f + 4;
       const baseY = H / 2 + (this.cam.y - (level.waterY + L.base)) * z;
@@ -353,8 +393,8 @@ export class Renderer {
       ctx.fill();
     }
     const hz = ctx.createLinearGradient(0, horizon - 120, 0, horizon + 20);
-    hz.addColorStop(0, 'rgba(240,235,220,0)');
-    hz.addColorStop(1, 'rgba(240,235,220,0.45)');
+    hz.addColorStop(0, `rgba(${this.pal.haze},0)`);
+    hz.addColorStop(1, `rgba(${this.pal.haze},0.45)`);
     ctx.fillStyle = hz;
     ctx.fillRect(0, horizon - 120, W, 140);
   }
@@ -409,15 +449,18 @@ export class Renderer {
 
   private drawPylons(level: Level) {
     const { ctx } = this;
+    const stone = level.anchors.filter((a) => a.pylon === 'stone' && a.pylonTo !== undefined);
+    if (stone.length === 2) this.tbWalkways(stone[0], stone[1]);
     for (const a of level.anchors) {
       if (a.pylonTo === undefined) continue;
+      if (a.pylon === 'orange') { this.ggTower(a.x, a.y, a.pylonTo); continue; }
+      if (a.pylon === 'stone') { this.tbTower(a.x, a.y, a.pylonTo); continue; }
       const tall = a.y - a.pylonTo > 6;
       const wTop = tall ? 0.9 : 1.1, wBot = tall ? 1.6 : 1.3;
       const g = ctx.createLinearGradient(a.x - wBot / 2, 0, a.x + wBot / 2, 0);
-      const [c0, c1, c2] = a.pylon === 'orange' ? ['#8f2a1c', '#d8573c', '#7a2416'] : a.pylon === 'stone' ? ['#a89f8a', '#e2d9c3', '#948b77'] : ['#9da3a8', '#d9dde0', '#858b91'];
-      g.addColorStop(0, c0);
-      g.addColorStop(0.5, c1);
-      g.addColorStop(1, c2);
+      g.addColorStop(0, '#8f959a');
+      g.addColorStop(0.55, '#dadde0');
+      g.addColorStop(1, '#7d8388');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(a.x - wBot / 2, a.pylonTo);
@@ -426,17 +469,14 @@ export class Renderer {
       ctx.lineTo(a.x + wBot / 2, a.pylonTo);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = 'rgba(40,44,48,0.4)'; ctx.lineWidth = 0.03; ctx.stroke();
+      // formwork lifts and tie holes
       ctx.fillStyle = 'rgba(0,0,0,0.1)';
       for (let y = a.pylonTo + 1.5; y < a.y; y += 1.5) ctx.fillRect(a.x - wBot / 2, y, wBot, 0.05);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      for (let y = a.pylonTo + 0.75; y < a.y; y += 1.5) for (const dx of [-0.25, 0.25]) ctx.fillRect(a.x + dx - 0.02, y, 0.04, 0.04);
       ctx.fillStyle = '#7d8388';
       ctx.fillRect(a.x - wTop / 2 - 0.2, a.y + 0.2, wTop + 0.4, 0.35);
-      if (a.pylon === 'stone') {
-        // gothic turret roof
-        ctx.fillStyle = '#4e5a63';
-        ctx.beginPath(); ctx.moveTo(a.x - wTop / 2 - 0.3, a.y + 0.55); ctx.lineTo(a.x, a.y + 2.4); ctx.lineTo(a.x + wTop / 2 + 0.3, a.y + 0.55); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = 'rgba(40,40,40,0.35)';
-        for (let y = a.pylonTo + 2.5; y < a.y - 1; y += 3) ctx.fillRect(a.x - 0.12, y, 0.24, 0.9);
-      }
       if (tall) {
         ctx.fillStyle = '#e3402f';
         ctx.beginPath(); ctx.arc(a.x, a.y + 0.75, 0.12, 0, Math.PI * 2); ctx.fill();
@@ -444,30 +484,141 @@ export class Renderer {
     }
   }
 
+  /** Golden Gate tower in elevation: stepped, fluted legs in International Orange */
+  private ggTower(x: number, top: number, base: number) {
+    const { ctx } = this;
+    const hgt = top - base;
+    const steps = 4;
+    for (let i = 0; i < steps; i++) {
+      const y0 = base + (hgt * i) / steps, y1 = base + (hgt * (i + 1)) / steps;
+      const w = 2.0 - i * 0.28;
+      const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+      g.addColorStop(0, '#8f2e1c'); g.addColorStop(0.45, '#d4552f'); g.addColorStop(0.7, '#c0442c'); g.addColorStop(1, '#7c2616');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - w / 2, y0, w, y1 - y0 + 0.05);
+      // vertical fluting (recessed panels)
+      ctx.fillStyle = 'rgba(60,15,8,0.35)';
+      for (const f of [-0.28, 0, 0.28]) ctx.fillRect(x + f * w - 0.035, y0 + 0.25, 0.07, y1 - y0 - 0.5);
+      // setback ledge
+      ctx.fillStyle = '#e57452';
+      ctx.fillRect(x - w / 2 - 0.08, y1 - 0.12, w + 0.16, 0.12);
+    }
+    ctx.fillStyle = '#a53a24';
+    ctx.fillRect(x - 0.7, top - 0.1, 1.4, 0.55);
+    ctx.fillStyle = '#ff5a3c';
+    ctx.beginPath(); ctx.arc(x, top + 0.75, 0.13, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** Tower Bridge tower: Portland stone, gothic windows, corner turrets and a slate pyramid roof */
+  private tbTower(x: number, top: number, base: number) {
+    const { ctx } = this;
+    const w = 3.4, hw = w / 2;
+    const g = ctx.createLinearGradient(x - hw, 0, x + hw, 0);
+    g.addColorStop(0, '#a99f88'); g.addColorStop(0.5, '#e6dcc4'); g.addColorStop(1, '#978d77');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - hw, base, w, top - base);
+    ctx.strokeStyle = 'rgba(90,82,66,0.35)'; ctx.lineWidth = 0.02;
+    ctx.beginPath();
+    for (let y = base + 0.5; y < top; y += 0.5) { ctx.moveTo(x - hw, y); ctx.lineTo(x + hw, y); }
+    ctx.stroke();
+    // gothic lancet windows in tiers
+    ctx.fillStyle = '#3e4650';
+    for (let y = base + 3; y < top - 1.2; y += 3.2) for (const dx of [-0.75, 0.75]) {
+      ctx.beginPath();
+      ctx.moveTo(x + dx - 0.28, y); ctx.lineTo(x + dx - 0.28, y + 1.3); ctx.quadraticCurveTo(x + dx, y + 1.9, x + dx + 0.28, y + 1.3); ctx.lineTo(x + dx + 0.28, y);
+      ctx.closePath(); ctx.fill();
+    }
+    // corner turrets with pinnacles
+    for (const s of [-1, 1]) {
+      const tx = x + s * (hw + 0.1);
+      ctx.fillStyle = '#d8ceb6';
+      ctx.fillRect(tx - 0.3, base, 0.6, top - base + 1.2);
+      ctx.fillStyle = '#4e5a63';
+      ctx.beginPath(); ctx.moveTo(tx - 0.38, top + 1.2); ctx.lineTo(tx, top + 3.0); ctx.lineTo(tx + 0.38, top + 1.2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#c9a54a';
+      ctx.fillRect(tx - 0.03, top + 3.0, 0.06, 0.35);
+    }
+    // main roof
+    ctx.fillStyle = '#4e5a63';
+    ctx.beginPath(); ctx.moveTo(x - hw, top + 0.3); ctx.lineTo(x, top + 3.6); ctx.lineTo(x + hw, top + 0.3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath(); ctx.moveTo(x, top + 3.6); ctx.lineTo(x + hw, top + 0.3); ctx.lineTo(x + hw * 0.4, top + 0.3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c9a54a';
+    ctx.fillRect(x - 0.04, top + 3.6, 0.08, 0.6);
+  }
+
+  /** the high-level walkways between Tower Bridge's towers (scenery, painted blue and white) */
+  private tbWalkways(a: { x: number; y: number }, b: { x: number; y: number }) {
+    const { ctx } = this;
+    const x0 = Math.min(a.x, b.x) + 1.7, x1 = Math.max(a.x, b.x) - 1.7;
+    const y0 = Math.min(a.y, b.y) - 3.4, y1 = y0 + 1.3;
+    ctx.fillStyle = 'rgba(214,226,238,0.9)';
+    ctx.fillRect(x0, y0, x1 - x0, 0.22);
+    ctx.fillRect(x0, y1 - 0.22, x1 - x0, 0.22);
+    ctx.strokeStyle = '#3c6fa6'; ctx.lineWidth = 0.08;
+    ctx.beginPath();
+    for (let x = x0, k = 0; x < x1 - 0.01; x += 1.3, k++) {
+      const xn = Math.min(x1, x + 1.3);
+      ctx.moveTo(x, k % 2 ? y0 + 0.2 : y1 - 0.2); ctx.lineTo(xn, k % 2 ? y1 - 0.2 : y0 + 0.2);
+      ctx.moveTo(x, y0 + 0.2); ctx.lineTo(x, y1 - 0.2);
+    }
+    ctx.stroke();
+  }
+
   private drawTerrain(level: Level) {
     const { ctx } = this;
+    if (this.pal.masonry && !this.masonryPattern) this.masonryPattern = this.makeMasonryPattern();
     for (const poly of level.terrain) {
+      const top = Math.max(...poly.map((p) => p.y));
+      const xs = poly.map((p) => p.x);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
       ctx.beginPath();
       poly.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
       ctx.closePath();
       ctx.save();
       ctx.clip();
-      if (this.rockPattern) {
+      const pattern = this.pal.masonry && this.masonryPattern ? this.masonryPattern : this.rockPattern;
+      if (pattern) {
         ctx.save();
-        ctx.scale(1 / 24, -1 / 24);
-        ctx.fillStyle = this.rockPattern;
+        ctx.scale(1 / (this.pal.masonry ? 40 : 24), -1 / (this.pal.masonry ? 40 : 24));
+        ctx.fillStyle = pattern;
         ctx.fillRect(-4000, -3000, 8000, 6000);
         ctx.restore();
       }
-      const top = Math.max(...poly.map((p) => p.y));
+      if (this.pal.rockTint) { ctx.fillStyle = this.pal.rockTint; ctx.fillRect(minX - 1, top - 80, maxX - minX + 2, 81); }
+      if (!this.pal.masonry) {
+        // sedimentary strata: wavy bands of lighter and darker rock
+        for (let k = 1; k < 30; k++) {
+          const y = top - 0.9 - k * 1.55;
+          ctx.fillStyle = k % 2 ? 'rgba(255,235,205,0.07)' : 'rgba(30,18,8,0.09)';
+          ctx.beginPath();
+          ctx.moveTo(minX - 1, y);
+          for (let x = minX - 1; x <= maxX + 1; x += 1.5) ctx.lineTo(x, y + (fbm(x * 0.15 + k * 3.1) - 0.5) * 0.9);
+          for (let x = maxX + 1; x >= minX - 1; x -= 1.5) ctx.lineTo(x, y - 0.7 + (fbm(x * 0.15 + k * 3.1 + 9) - 0.5) * 0.9);
+          ctx.closePath();
+          ctx.fill();
+        }
+        // top soil under the grass
+        const sg = ctx.createLinearGradient(0, top, 0, top - 1.4);
+        sg.addColorStop(0, '#5a3f28');
+        sg.addColorStop(1, 'rgba(90,63,40,0)');
+        ctx.fillStyle = sg;
+        ctx.fillRect(minX - 1, top - 1.4, maxX - minX + 2, 1.4);
+      }
       const g = ctx.createLinearGradient(0, top, 0, top - 20);
       g.addColorStop(0, 'rgba(0,0,0,0)');
       g.addColorStop(1, 'rgba(20,10,5,0.6)');
       ctx.fillStyle = g;
-      ctx.fillRect(-300, top - 80, 600, 81);
+      ctx.fillRect(minX - 1, top - 80, maxX - minX + 2, 81);
+      // light from the upper right: lit faces facing right are brighter
+      const lg = ctx.createLinearGradient(minX, 0, maxX, 0);
+      lg.addColorStop(0, 'rgba(0,0,0,0.12)');
+      lg.addColorStop(1, 'rgba(255,240,215,0.08)');
+      ctx.fillStyle = lg;
+      ctx.fillRect(minX - 1, top - 80, maxX - minX + 2, 81);
       ctx.restore();
       ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#4b3a2c';
+      ctx.strokeStyle = this.pal.masonry ? '#4a4741' : '#4b3a2c';
       ctx.lineWidth = 0.12;
       ctx.stroke();
 
@@ -476,10 +627,26 @@ export class Renderer {
         if (Math.abs(a.y - b.y) > 0.01 || Math.abs(a.y - top) > 0.01) continue;
         const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
         const isFloor = level.highwayY !== null && Math.abs(top - level.highwayY) < 0.01;
-        ctx.fillStyle = '#5c9a3c';
-        ctx.fillRect(x0, top - 0.55, x1 - x0, 0.55);
-        ctx.fillStyle = '#76b84c';
-        ctx.fillRect(x0, top - 0.2, x1 - x0, 0.2);
+        if (this.pal.masonry && !isFloor) {
+          // quay: stone coping instead of grass
+          ctx.fillStyle = '#b7b0a2';
+          ctx.fillRect(x0, top - 0.45, x1 - x0, 0.45);
+          ctx.fillStyle = 'rgba(0,0,0,0.25)';
+          ctx.fillRect(x0, top - 0.47, x1 - x0, 0.05);
+        } else {
+          ctx.fillStyle = '#5c9a3c';
+          ctx.fillRect(x0, top - 0.55, x1 - x0, 0.55);
+          ctx.fillStyle = '#76b84c';
+          ctx.fillRect(x0, top - 0.2, x1 - x0, 0.2);
+          // grass tufts along the edge
+          ctx.fillStyle = '#4f8a33';
+          ctx.beginPath();
+          for (let x = x0 + 0.2; x < x1 - 0.2; x += 0.55) {
+            const h = 0.18 + hash(x * 3.7) * 0.22;
+            ctx.moveTo(x - 0.12, top); ctx.lineTo(x + (hash(x) - 0.5) * 0.15, top + h); ctx.lineTo(x + 0.12, top);
+          }
+          ctx.fill();
+        }
         if (x1 - x0 > 5 && !isFloor) this.tarmac(x0, x1, top);
         if (isFloor) {
           ctx.fillStyle = '#4a4e57';
@@ -488,6 +655,33 @@ export class Renderer {
           ctx.fillRect(level.span / 2 - 0.6, top, 1.2, 0.8); // median barrier
         }
       }
+    }
+    this.drawAbutments(level);
+  }
+
+  /** concrete abutment seats where the deck lands on each bank */
+  private drawAbutments(level: Level) {
+    const { ctx } = this;
+    for (const [i, s] of [[0, 1], [1, -1]] as const) {
+      const a = level.anchors[i];
+      const face = a.x + s * 0.25; // front face, slightly proud of the bank
+      const depth = Math.max(1.3, Math.min(3.7, level.span * 0.1)), seat = Math.max(1.1, Math.min(2.6, level.span * 0.07));
+      const back = a.x - s * seat;
+      const g = ctx.createLinearGradient(back, 0, face, 0);
+      g.addColorStop(0, '#9fa29d'); g.addColorStop(1, s > 0 ? '#c9cbc5' : '#8d908b');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(back, a.y - 0.32); ctx.lineTo(face, a.y - 0.32); ctx.lineTo(face, a.y - depth + 0.5);
+      ctx.lineTo(face - s * 0.5, a.y - depth); ctx.lineTo(back, a.y - depth); ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(60,62,58,0.6)'; ctx.lineWidth = 0.03; ctx.stroke();
+      // formwork lines and a bearing shelf
+      ctx.strokeStyle = 'rgba(80,82,78,0.3)'; ctx.lineWidth = 0.015;
+      ctx.beginPath();
+      for (let y = a.y - 1; y > a.y - depth + 0.1; y -= 0.9) { ctx.moveTo(back, y); ctx.lineTo(face, y); }
+      ctx.stroke();
+      ctx.fillStyle = '#d6d8d2';
+      ctx.fillRect(Math.min(face, face - s * 0.8), a.y - 0.42, 0.8, 0.1);
     }
   }
 
@@ -645,10 +839,35 @@ export class Renderer {
     ctx.lineTo(right, bottom);
     ctx.closePath();
     const g = ctx.createLinearGradient(0, wy, 0, wy - 14);
-    g.addColorStop(0, 'rgba(46,140,190,0.72)');
-    g.addColorStop(1, 'rgba(14,52,92,0.96)');
+    g.addColorStop(0, this.pal.water[0]);
+    g.addColorStop(1, this.pal.water[1]);
     ctx.fillStyle = g;
     ctx.fill();
+    // sky reflection near the surface
+    const rg = ctx.createLinearGradient(0, wy, 0, wy - 2.5);
+    rg.addColorStop(0, 'rgba(225,240,250,0.32)');
+    rg.addColorStop(1, 'rgba(225,240,250,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(left, wy - 2.5, right - left, 2.5);
+    // sun glitter under the sun
+    const sunWX = this.toWorld(this.W * 0.72, 0).x;
+    ctx.fillStyle = 'rgba(255,250,220,0.55)';
+    for (let i = 0; i < 26; i++) {
+      const gx = sunWX + (hash(i * 4.1) - 0.5) * 16, gy = wy - 0.15 - hash(i * 2.3) * 3;
+      const tw = 0.5 + 0.5 * Math.sin(t * 3 + i * 1.7);
+      ctx.fillRect(gx, gy, 0.3 + tw * 0.9, 0.035);
+    }
+    // foam where the banks and piers meet the water
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    for (const poly of level.terrain) for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      if ((a.y - wy) * (b.y - wy) > 0 || a.y === b.y) continue;
+      const fx = a.x + ((wy - a.y) / (b.y - a.y)) * (b.x - a.x);
+      for (let k = 0; k < 3; k++) {
+        const o = Math.sin(t * 2 + k * 2 + fx) * 0.25;
+        ctx.beginPath(); ctx.ellipse(fx + (k - 1) * 0.5 + o, wy + 0.02, 0.45, 0.07, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
     ctx.strokeStyle = 'rgba(255,255,255,0.65)';
     ctx.lineWidth = 0.08;
     ctx.beginPath();
@@ -662,10 +881,17 @@ export class Renderer {
   }
 
   // ---------------- members ----------------
+  /** paint for steel members: level-specific (Golden Gate orange, Hell Gate red) or the material default */
+  private steelPaint = MATERIALS.steel.color;
+
   private member(ax: number, ay: number, bx: number, by: number, mat: MaterialId, sec: number, color: string | null, highlight = 0, alpha = 1) {
     const { ctx } = this;
     const M = MATERIALS[mat];
     const w = drawWidth(mat, sec);
+    const len = Math.hypot(bx - ax, by - ay) || 1;
+    const ux = (bx - ax) / len, uy = (by - ay) / len;
+    let nx = -uy, ny = ux;
+    if (ny < 0 || (ny === 0 && nx < 0)) { nx = -nx; ny = -ny; }
     ctx.globalAlpha = alpha;
     ctx.lineCap = 'round';
     if (highlight) {
@@ -673,51 +899,141 @@ export class Renderer {
       ctx.lineWidth = w + 0.22;
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     }
-    if (mat === 'deck') {
-      const len = Math.hypot(bx - ax, by - ay) || 1;
-      let nx = -(by - ay) / len, ny = (bx - ax) / len;
-      if (ny < 0) { nx = -nx; ny = -ny; }
-      ctx.fillStyle = color ?? (sec === 0 ? '#8a6a46' : sec === 1 ? '#555b66' : '#8f949b');
-      ctx.beginPath();
-      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
-      ctx.lineTo(bx - nx * w, by - ny * w); ctx.lineTo(ax - nx * w, ay - ny * w);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = M.edge;
-      ctx.lineWidth = 0.04;
-      ctx.stroke();
-      // wearing surface + guard rail
-      ctx.strokeStyle = '#33373e';
-      ctx.lineWidth = 0.1;
-      ctx.beginPath(); ctx.moveTo(ax, ay - ny * 0.05); ctx.lineTo(bx, by - ny * 0.05); ctx.stroke();
-      if (!color) {
-        ctx.strokeStyle = 'rgba(205,210,216,0.85)';
-        ctx.lineWidth = 0.05;
-        ctx.beginPath(); ctx.moveTo(ax + nx * 0.85, ay + ny * 0.85); ctx.lineTo(bx + nx * 0.85, by + ny * 0.85); ctx.stroke();
-        const n = Math.max(1, Math.round(len / 1));
-        for (let i = 0; i <= n; i++) {
-          const t = i / n, px = ax + (bx - ax) * t, py = ay + (by - ay) * t;
-          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + nx * 0.85, py + ny * 0.85); ctx.stroke();
-        }
-      }
-    } else {
+    if (mat === 'deck') { this.deckPanel(ax, ay, bx, by, sec, w, nx, ny, len, color); ctx.globalAlpha = 1; return; }
+    if (color) {
+      // analysis views stay flat and readable
       ctx.strokeStyle = M.edge;
       ctx.lineWidth = w + 0.05;
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-      ctx.strokeStyle = color ?? M.color;
+      ctx.strokeStyle = color;
       ctx.lineWidth = w;
       ctx.stroke();
-      if (!color && mat === 'steel') {
-        ctx.strokeStyle = 'rgba(80,20,8,0.5)';
-        ctx.lineWidth = w * 0.3;
+      ctx.globalAlpha = 1;
+      return;
+    }
+    // soft contact shadow, then a shaded section lit from above
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = 'rgba(10,15,25,0.16)';
+    ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(ax + 0.07, ay - 0.11); ctx.lineTo(bx + 0.07, by - 0.11); ctx.stroke();
+    const hw = w / 2;
+    const g = ctx.createLinearGradient(ax + nx * hw, ay + ny * hw, ax - nx * hw, ay - ny * hw);
+    if (mat === 'cable') {
+      g.addColorStop(0, '#6b7079'); g.addColorStop(0.45, '#2a2d33'); g.addColorStop(1, '#0d0f12');
+    } else if (mat === 'timber') {
+      g.addColorStop(0, '#e2b07a'); g.addColorStop(0.35, '#c08549'); g.addColorStop(1, '#7b4d24');
+    } else {
+      const c = this.steelPaint;
+      g.addColorStop(0, shade(c, 0.32)); g.addColorStop(0.3, c); g.addColorStop(0.75, shade(c, -0.25)); g.addColorStop(1, shade(c, -0.5));
+    }
+    ctx.beginPath();
+    ctx.moveTo(ax + nx * hw, ay + ny * hw); ctx.lineTo(bx + nx * hw, by + ny * hw);
+    ctx.lineTo(bx - nx * hw, by - ny * hw); ctx.lineTo(ax - nx * hw, ay - ny * hw);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+    if (mat === 'cable') {
+      // strand lay: short diagonal glints along the rope
+      ctx.strokeStyle = 'rgba(210,215,222,0.35)';
+      ctx.lineWidth = Math.max(0.015, w * 0.25);
+      ctx.setLineDash([w * 0.9, w * 0.9]);
+      ctx.beginPath(); ctx.moveTo(ax + nx * hw * 0.35, ay + ny * hw * 0.35); ctx.lineTo(bx + nx * hw * 0.35, by + ny * hw * 0.35); ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = mat === 'timber' ? '#5a3816' : shade(this.steelPaint, -0.6);
+      ctx.lineWidth = 0.025;
+      ctx.stroke();
+      if (mat === 'timber') {
+        // glulam laminations
+        ctx.strokeStyle = 'rgba(90,52,20,0.35)';
+        ctx.lineWidth = 0.012;
+        ctx.beginPath();
+        for (const f of [-0.5, -0.17, 0.17, 0.5]) { const o = f * hw; ctx.moveTo(ax + nx * o, ay + ny * o); ctx.lineTo(bx + nx * o, by + ny * o); }
         ctx.stroke();
-      } else if (!color && mat === 'timber') {
-        ctx.strokeStyle = 'rgba(255,220,170,0.22)';
-        ctx.lineWidth = w * 0.25;
-        ctx.stroke();
+      } else if (w > 0.16) {
+        // flange line of the hollow section
+        ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+        ctx.lineWidth = w * 0.08;
+        ctx.beginPath(); ctx.moveTo(ax + nx * hw * 0.55, ay + ny * hw * 0.55); ctx.lineTo(bx + nx * hw * 0.55, by + ny * hw * 0.55); ctx.stroke();
       }
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** road deck in elevation: girder face, asphalt, kerb, railing, lamps */
+  private deckPanel(ax: number, ay: number, bx: number, by: number, sec: number, w: number, nx: number, ny: number, len: number, color: string | null) {
+    const { ctx } = this;
+    const quad = (o0: number, o1: number) => {
+      ctx.beginPath();
+      ctx.moveTo(ax - nx * o0, ay - ny * o0); ctx.lineTo(bx - nx * o0, by - ny * o0);
+      ctx.lineTo(bx - nx * o1, by - ny * o1); ctx.lineTo(ax - nx * o1, ay - ny * o1);
+      ctx.closePath();
+    };
+    if (color) {
+      quad(0, w); ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = '#1d2026'; ctx.lineWidth = 0.04; ctx.stroke();
+      ctx.strokeStyle = '#33373e'; ctx.lineWidth = 0.1;
+      ctx.beginPath(); ctx.moveTo(ax, ay - ny * 0.05); ctx.lineTo(bx, by - ny * 0.05); ctx.stroke();
+      return;
+    }
+    // shadow under the deck
+    ctx.fillStyle = 'rgba(10,15,25,0.18)';
+    ctx.beginPath();
+    ctx.moveTo(ax - nx * w, ay - ny * w); ctx.lineTo(bx - nx * w, by - ny * w);
+    ctx.lineTo(bx - nx * (w + 0.22) + 0.08, by - ny * (w + 0.22)); ctx.lineTo(ax - nx * (w + 0.22) + 0.08, ay - ny * (w + 0.22));
+    ctx.closePath(); ctx.fill();
+    // girder / slab face
+    const g = ctx.createLinearGradient(ax, ay, ax - nx * w, ay - ny * w);
+    if (sec === 0) { g.addColorStop(0, '#a77a4c'); g.addColorStop(0.5, '#8a6038'); g.addColorStop(1, '#5e3e20'); }
+    else if (sec === 1) { g.addColorStop(0, '#6c737e'); g.addColorStop(0.5, '#4b515b'); g.addColorStop(1, '#2c3037'); }
+    else { g.addColorStop(0, '#c4c6c2'); g.addColorStop(0.55, '#a9aba6'); g.addColorStop(1, '#7c7e7a'); }
+    quad(0.08, w); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(20,22,26,0.55)'; ctx.lineWidth = 0.02; ctx.stroke();
+    ctx.lineWidth = 0.015;
+    ctx.beginPath();
+    if (sec === 0) {
+      // plank ends and a stringer line
+      ctx.strokeStyle = 'rgba(60,35,15,0.45)';
+      ctx.moveTo(ax - nx * w * 0.45, ay - ny * w * 0.45); ctx.lineTo(bx - nx * w * 0.45, by - ny * w * 0.45);
+      for (let t = 0.22 / len; t < 1; t += 0.22 / len) { const px = ax + (bx - ax) * t, py = ay + (by - ay) * t; ctx.moveTo(px - nx * 0.08, py - ny * 0.08); ctx.lineTo(px - nx * w * 0.45, py - ny * w * 0.45); }
+    } else if (sec === 1) {
+      // orthotropic deck: bolted splice + stiffener line
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.moveTo(ax - nx * w * 0.7, ay - ny * w * 0.7); ctx.lineTo(bx - nx * w * 0.7, by - ny * w * 0.7);
+    } else {
+      // concrete: pour joints and drip edge
+      ctx.strokeStyle = 'rgba(70,70,65,0.35)';
+      ctx.moveTo(ax - nx * w * 0.82, ay - ny * w * 0.82); ctx.lineTo(bx - nx * w * 0.82, by - ny * w * 0.82);
+    }
+    ctx.stroke();
+    // asphalt + kerb
+    quad(-0.02, 0.09); ctx.fillStyle = '#2f3238'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 0.012;
+    ctx.beginPath(); ctx.moveTo(ax + nx * 0.015, ay + ny * 0.015); ctx.lineTo(bx + nx * 0.015, by + ny * 0.015); ctx.stroke();
+    // parapet railing (behind traffic)
+    const rail = (h: number, lw: number, col: string) => {
+      ctx.strokeStyle = col; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.moveTo(ax + nx * h, ay + ny * h); ctx.lineTo(bx + nx * h, by + ny * h); ctx.stroke();
+    };
+    rail(1.0, 0.06, 'rgba(150,158,168,0.95)');
+    rail(0.55, 0.035, 'rgba(150,158,168,0.8)');
+    ctx.strokeStyle = 'rgba(120,128,138,0.95)'; ctx.lineWidth = 0.04;
+    ctx.beginPath();
+    const posts = Math.max(1, Math.round(len / 1.5));
+    for (let i = 0; i <= posts; i++) {
+      const t = i / posts, px = ax + (bx - ax) * t, py = ay + (by - ay) * t;
+      ctx.moveTo(px + nx * 0.06, py + ny * 0.06); ctx.lineTo(px + nx * 1.02, py + ny * 1.02);
+    }
+    ctx.stroke();
+    // street lamps every 12 m along the road
+    const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx);
+    for (let lx = Math.ceil(x0 / 12) * 12; lx < x1; lx += 12) {
+      const t = (lx - ax) / (bx - ax || 1), ly = ay + (by - ay) * t;
+      ctx.strokeStyle = '#5b636d'; ctx.lineWidth = 0.07;
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, ly + 3.6); ctx.quadraticCurveTo(lx, ly + 4.0, lx + 0.6, ly + 4.0); ctx.stroke();
+      ctx.fillStyle = '#fff3c8';
+      ctx.beginPath(); ctx.ellipse(lx + 0.65, ly + 3.93, 0.22, 0.08, 0, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   private joint(x: number, y: number, hl = false, size = 0.13) {
@@ -729,6 +1045,71 @@ export class Renderer {
     ctx.arc(x, y, hl ? size + 0.05 : size, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+  }
+
+  /**
+   * bolted gusset plate: the convex hull of short stubs of every member meeting at the joint,
+   * painted like its framing, with a bolt group.
+   */
+  private gusset(x: number, y: number, ends: { ux: number; uy: number; w: number; mat: MaterialId }[], hl: boolean) {
+    const { ctx } = this;
+    const framing = ends.filter((e) => e.mat !== 'deck' && e.mat !== 'cable');
+    if (!framing.length && !ends.some((e) => e.mat === 'cable')) {
+      // deck-only joint: a cross-girder end
+      ctx.fillStyle = '#3d424a';
+      ctx.fillRect(x - 0.09, y - 0.42, 0.18, 0.4);
+      return;
+    }
+    const pts: [number, number][] = [];
+    const reach = 0.34;
+    for (const e of framing.length ? framing : ends) {
+      const hw = Math.max(0.09, e.w * 0.62), nx = -e.uy, ny = e.ux;
+      pts.push([x + e.ux * reach + nx * hw, y + e.uy * reach + ny * hw], [x + e.ux * reach - nx * hw, y + e.uy * reach - ny * hw]);
+    }
+    pts.push([x + 0.12, y + 0.12], [x - 0.12, y + 0.12], [x + 0.12, y - 0.12], [x - 0.12, y - 0.12]);
+    // monotone-chain convex hull
+    pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o: [number, number], a: [number, number], b: [number, number]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo: [number, number][] = [], up: [number, number][] = [];
+    for (const p of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+    const hull = lo.slice(0, -1).concat(up.slice(0, -1));
+    const steel = framing.some((e) => e.mat === 'steel');
+    const base = steel ? shade(this.steelPaint, -0.12) : '#4a4f57';
+    const g = ctx.createLinearGradient(x, y + 0.4, x, y - 0.4);
+    g.addColorStop(0, shade(base.startsWith('#') ? base : '#4a4f57', 0.25));
+    g.addColorStop(1, base.startsWith('#') ? shade(base, -0.3) : base);
+    ctx.fillStyle = hl ? '#ffffff' : steel ? base : g;
+    ctx.beginPath();
+    hull.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(15,18,22,0.7)';
+    ctx.lineWidth = 0.02;
+    ctx.stroke();
+    // bolt group: one pair per framing member + the pin
+    ctx.fillStyle = 'rgba(230,232,235,0.85)';
+    for (const e of framing) {
+      for (const d of [0.16, 0.27]) { ctx.beginPath(); ctx.arc(x + e.ux * d, y + e.uy * d, 0.028, 0, Math.PI * 2); ctx.fill(); }
+    }
+    ctx.fillStyle = '#20242a';
+    ctx.beginPath(); ctx.arc(x, y, 0.065, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.arc(x - 0.015, y + 0.02, 0.025, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** collect member ends per joint so gussets can be shaped */
+  private jointEnds(segs: { a: number; b: number; ax: number; ay: number; bx: number; by: number; mat: MaterialId; sec: number }[]) {
+    const ends = new Map<number, { x: number; y: number; list: { ux: number; uy: number; w: number; mat: MaterialId }[] }>();
+    for (const s of segs) {
+      const L = Math.hypot(s.bx - s.ax, s.by - s.ay) || 1;
+      const ux = (s.bx - s.ax) / L, uy = (s.by - s.ay) / L, w = drawWidth(s.mat, s.sec);
+      if (!ends.has(s.a)) ends.set(s.a, { x: s.ax, y: s.ay, list: [] });
+      if (!ends.has(s.b)) ends.set(s.b, { x: s.bx, y: s.by, list: [] });
+      ends.get(s.a)!.list.push({ ux, uy, w, mat: s.mat });
+      ends.get(s.b)!.list.push({ ux: -ux, uy: -uy, w, mat: s.mat });
+    }
+    return ends;
   }
 
   private memberColor(ov: Overlay, beamId: number, liveRatio?: number, liveForce?: number, cap?: number): string | null {
@@ -757,7 +1138,15 @@ export class Renderer {
         this.member(a.x, a.y, c.x, c.y, mat, b.sec, this.memberColor(ov, b.id), hl);
       }
     }
-    for (const n of d.nodes) if (!n.anchor) this.joint(n.x, n.y, ov.hoverNode === n.id || ov.moveNode === n.id);
+    if (ov.view === 'material') {
+      const ends = this.jointEnds(d.beams.map((b) => { const a = d.node(b.a)!, c = d.node(b.b)!; return { a: b.a, b: b.b, ax: a.x, ay: a.y, bx: c.x, by: c.y, mat: b.mat, sec: b.sec }; }));
+      for (const n of d.nodes) {
+        if (n.anchor) continue;
+        const e = ends.get(n.id);
+        if (e) this.gusset(n.x, n.y, e.list, ov.hoverNode === n.id || ov.moveNode === n.id);
+        else this.joint(n.x, n.y, ov.hoverNode === n.id || ov.moveNode === n.id);
+      }
+    } else for (const n of d.nodes) if (!n.anchor) this.joint(n.x, n.y, ov.hoverNode === n.id || ov.moveNode === n.id);
     if (ov.hoverNode !== null) {
       const n = d.node(ov.hoverNode);
       if (n?.anchor) {
@@ -890,30 +1279,50 @@ export class Renderer {
       joined.add(m.a);
       if (!m.debris) joined.add(m.b);
     }
-    for (const [, pi] of sim.nodeIndex) {
+    if (ov.view === 'material') {
+      const segs = sim.members.filter((m) => !m.broken && !m.debris && m.mat !== null)
+        .map((m) => ({ a: m.a, b: m.b, ax: P[m.a].x, ay: P[m.a].y, bx: P[m.b].x, by: P[m.b].y, mat: m.mat as MaterialId, sec: m.sec }));
+      const ends = this.jointEnds(segs);
+      for (const [, pi] of sim.nodeIndex) {
+        const p = P[pi];
+        if (p.anchor || !joined.has(pi)) continue;
+        const e = ends.get(pi);
+        if (e) this.gusset(p.x, p.y, e.list, false); else this.joint(p.x, p.y);
+      }
+    } else for (const [, pi] of sim.nodeIndex) {
       const p = P[pi];
       if (!p.anchor && joined.has(pi)) this.joint(p.x, p.y);
     }
   }
 
-  private drawAnchors(level: Level) {
+  private drawAnchors(level: Level, build: boolean) {
     const { ctx } = this;
     for (const a of level.anchors) {
-      ctx.fillStyle = '#e3402f';
-      ctx.strokeStyle = '#6d140b';
-      ctx.lineWidth = 0.06;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(a.x - 0.3, a.y - 0.42);
-      ctx.lineTo(a.x + 0.3, a.y - 0.42);
-      ctx.closePath();
-      ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = '#6d140b';
-      ctx.beginPath();
-      for (let k = -2; k <= 2; k++) { ctx.moveTo(a.x + k * 0.13, a.y - 0.42); ctx.lineTo(a.x + k * 0.13 - 0.1, a.y - 0.55); }
-      ctx.stroke();
-      ctx.fillStyle = '#ffd8d2';
-      ctx.beginPath(); ctx.arc(a.x, a.y, 0.11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      if (a.pylonTo !== undefined) {
+        // cable saddle on the tower top
+        ctx.fillStyle = '#2d3138';
+        ctx.beginPath(); ctx.roundRect(a.x - 0.32, a.y - 0.22, 0.64, 0.4, 0.12); ctx.fill();
+        ctx.fillStyle = '#5d636c';
+        ctx.beginPath(); ctx.arc(a.x, a.y, 0.12, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // pinned bearing: concrete plinth, sole plate, rocker and pin
+        ctx.fillStyle = '#b9bbb5';
+        ctx.fillRect(a.x - 0.42, a.y - 0.62, 0.84, 0.26);
+        ctx.fillStyle = '#3a3f46';
+        ctx.fillRect(a.x - 0.34, a.y - 0.38, 0.68, 0.07);
+        ctx.fillStyle = '#545b64';
+        ctx.beginPath(); ctx.moveTo(a.x - 0.22, a.y - 0.31); ctx.lineTo(a.x + 0.22, a.y - 0.31); ctx.lineTo(a.x + 0.09, a.y); ctx.lineTo(a.x - 0.09, a.y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#1f2328';
+        ctx.beginPath(); ctx.arc(a.x, a.y, 0.1, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath(); ctx.arc(a.x - 0.025, a.y + 0.03, 0.035, 0, Math.PI * 2); ctx.fill();
+      }
+      if (build) {
+        // fixed-support marker so players can still spot every anchor while designing
+        ctx.strokeStyle = 'rgba(227,64,47,0.95)';
+        ctx.lineWidth = 0.06;
+        ctx.beginPath(); ctx.arc(a.x, a.y, 0.24, 0, Math.PI * 2); ctx.stroke();
+      }
     }
   }
 
@@ -1035,11 +1444,19 @@ export class Renderer {
     ctx.translate(-ax0, lift);
     const L = V.length, H = V.height, r = V.wheelR;
     const y0 = -r * 0.3;
-    const body = V.color, dark = shade(body, -0.35), glass = '#bfe3f7';
+    const body = V.color, dark = shade(body, -0.35);
+    // contact shadow on the road
+    ctx.fillStyle = 'rgba(10,12,18,0.28)';
+    ctx.beginPath(); ctx.ellipse(L / 2, -r * 1.02 - lift, L / 2 + 0.25, 0.12, 0, 0, Math.PI * 2); ctx.fill();
+    // body lit from above, glass with a sky reflection
+    const bodyG = ctx.createLinearGradient(0, y0 + H, 0, y0);
+    bodyG.addColorStop(0, shade(body, 0.28)); bodyG.addColorStop(0.45, body); bodyG.addColorStop(1, shade(body, -0.3));
+    const glass = ctx.createLinearGradient(0, y0 + H, 0, y0 + 0.9);
+    glass.addColorStop(0, '#e9f6fd'); glass.addColorStop(0.5, '#a9cfe6'); glass.addColorStop(1, '#5d86a3');
     ctx.lineJoin = 'round';
     ctx.lineWidth = 0.05;
     ctx.strokeStyle = dark;
-    ctx.fillStyle = body;
+    ctx.fillStyle = bodyG;
     switch (kind) {
       case 'car': {
         ctx.beginPath();
@@ -1099,7 +1516,7 @@ export class Renderer {
       case 'train': {
         // two coaches with a gangway between them
         const car = (x0: number, x1: number, noseL: boolean, noseR: boolean) => {
-          ctx.fillStyle = body;
+          ctx.fillStyle = bodyG;
           ctx.beginPath();
           ctx.moveTo(x0 + (noseL ? 1.4 : 0), y0 + H - 0.1);
           ctx.lineTo(x1 - (noseR ? 1.4 : 0), y0 + H - 0.1);
@@ -1134,7 +1551,7 @@ export class Renderer {
         ctx.fillRect(0.4, deckTop + H - 1.15, 5.6, 0.15);
         ctx.fillStyle = '#2b2f36';
         ctx.fillRect(10.2, y0 + 0.2, L - 10.2, 0.45);
-        ctx.fillStyle = body;
+        ctx.fillStyle = bodyG;
         ctx.beginPath();
         ctx.moveTo(L - cab, y0 + 0.2); ctx.lineTo(L - cab, y0 + H - 0.4); ctx.lineTo(L - 0.5, y0 + H - 0.4);
         ctx.lineTo(L, y0 + 1.5); ctx.lineTo(L, y0 + 0.2); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -1163,7 +1580,7 @@ export class Renderer {
           ctx.fillStyle = '#7d58c9';
           ctx.fillRect(0, y0 + 1.6, L - cab - 0.3, 0.3);
         }
-        ctx.fillStyle = body;
+        ctx.fillStyle = bodyG;
         ctx.beginPath();
         ctx.moveTo(L - cab, y0 + 0.2); ctx.lineTo(L - cab, y0 + H - 0.1); ctx.lineTo(L - 0.5, y0 + H - 0.1);
         ctx.lineTo(L, y0 + 1.5); ctx.lineTo(L, y0 + 0.2); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -1190,6 +1607,8 @@ export class Renderer {
     const { ctx } = this;
     ctx.fillStyle = '#1b1d21';
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = r * 0.12;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.85, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke();
     ctx.fillStyle = heavy ? '#8d939b' : '#b8bec6';
     ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#5c636c';

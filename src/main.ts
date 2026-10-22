@@ -47,7 +47,7 @@ let analysis: AnalysisResult | null = null;
 let analysisTimer = 0;
 let tool: Tool = 'deck';
 const secByMat: Record<MaterialId, number> = { deck: 0, timber: 1, steel: 1, cable: 1 };
-let view: ViewMode = store.get('view', 'util');
+let view: ViewMode = store.get('view', 'material');
 let labels = store.get('labels', true);
 let shapeOn = store.get('shape', true);
 let grid = store.get('grid', true);
@@ -830,7 +830,7 @@ function showResult() {
 $('modal').addEventListener('click', (e) => {
   const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
   if (!act) return;
-  if (act === 'edit') { stopSim(); view = 'util'; syncHud(); }
+  if (act === 'edit') { stopSim(); syncHud(); }
   else if (act === 'replay') { stopSim(); startSim(); }
   else if (act === 'next') { const i = LEVELS.findIndex((l) => l.id === level.id); loadLevel(LEVELS[i + 1]); }
   else if (act === 'watch') $('modal').classList.add('hidden');
